@@ -5,6 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import PraticaActionsClient from "@/components/pratiche/PraticaActionsClient";
 
 const tabs = [
     { label: "Overview", href: "" },
@@ -75,6 +76,15 @@ export default async function PraticaLayout({
                     >
                         Calcola Score
                     </Link>
+                    <PraticaActionsClient
+                        praticaId={id}
+                        nome_pratica={pratica.nome_pratica}
+                        fornitore_cinese={pratica.fornitore_cinese ?? null}
+                        data_prevista_arrivo={pratica.data_prevista_arrivo ?? null}
+                        data_sdoganamento={pratica.data_sdoganamento ?? null}
+                        note={pratica.note ?? null}
+                        stato={pratica.stato}
+                    />
                 </div>
             </div>
 

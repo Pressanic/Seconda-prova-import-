@@ -109,7 +109,15 @@ export default async function ComplianceCEPage({ params }: { params: Promise<{ i
                                                 </div>
                                                 {doc ? (
                                                     <div className="mt-1">
-                                                        <p className="text-xs text-slate-400">{doc.nome_file} — caricato il {formatDate(doc.uploaded_at?.toString())}</p>
+                                                        <div className="flex items-center gap-3 flex-wrap">
+                                                            <p className="text-xs text-slate-400">{doc.nome_file} — caricato il {formatDate(doc.uploaded_at?.toString())}</p>
+                                                            {doc.url_storage && (
+                                                                <a href={doc.url_storage} target="_blank" rel="noopener noreferrer"
+                                                                   className="text-xs text-blue-400 hover:text-blue-300 underline shrink-0 transition">
+                                                                    Visualizza ↗
+                                                                </a>
+                                                            )}
+                                                        </div>
                                                         {anomalie.length > 0 && (
                                                             <div className="mt-2 space-y-1">
                                                                 {anomalie.map((a: any, i: number) => (

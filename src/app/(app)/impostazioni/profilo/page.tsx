@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
-import { User, Mail, Shield } from "lucide-react";
+import { Mail, Shield } from "lucide-react";
+import PasswordChangeForm from "@/components/forms/PasswordChangeForm";
 
 export default async function ProfiloPage() {
     const session = await auth();
@@ -43,6 +44,8 @@ export default async function ProfiloPage() {
                     </div>
                 </div>
             </div>
+
+            <PasswordChangeForm />
         </div>
     );
 }

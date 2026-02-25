@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import type { RiskResult } from "@/lib/services/risk-engine";
+import { toast } from "@/hooks/useToast";
 
 interface RecalculateButtonProps {
     praticaId: string;
@@ -24,6 +25,7 @@ export default function RecalculateButton({ praticaId, result, userId, orgId }: 
                 body: JSON.stringify({ result }),
             });
             setSaved(true);
+            toast("Risk score salvato correttamente", "success");
             setTimeout(() => setSaved(false), 3000);
         } finally {
             setLoading(false);

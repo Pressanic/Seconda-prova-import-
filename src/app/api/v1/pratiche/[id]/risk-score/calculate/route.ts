@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { risk_scores, pratiche } from "@/lib/db/schema";
+import { risk_scores, pratiche, audit_log } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +28,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         raccomandazioni: result.raccomandazioni,
         calcolato_by: user_id,
     }).returning();
+
+    if (score) {
+        await db.insert(audit_log).values({
+            organization_id: org_id,
+            pratica_id: id,
+            user_id,
+            azione: "RISK_SCORE_CALCOLATO",
+            entita_tipo: "risk_score",
+            entita_id: score.id,
+            dati_nuovi: {
+                score_globale: score.score_globale,
+                livello_rischio: score.livello_rischio,
+            },
+        });
+    }
 
     return NextResponse.json(score, { status: 201 });
 }

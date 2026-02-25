@@ -2,13 +2,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { classificazioni_hs, macchinari, pratiche } from "@/lib/db/schema";
+import { classificazioni_hs, macchinari, pratiche, audit_log } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const org_id = (session.user as any).organization_id;
+    const user_id = (session.user as any).id;
     const { id } = await params;
 
     const [pratica] = await db.select().from(pratiche)
@@ -36,6 +37,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         iva_applicabile: body.iva_applicabile?.toString(),
         misure_restrittive: body.misure_restrittive ?? [],
     }).returning();
+
+    if (classif) {
+        await db.insert(audit_log).values({
+            organization_id: org_id,
+            pratica_id: id,
+            user_id,
+            azione: "HS_CLASSIFICATO",
+            entita_tipo: "classificazione_hs",
+            entita_id: classif.id,
+            dati_nuovi: { codice_hs: body.codice_hs, codice_taric: body.codice_taric },
+        });
+    }
 
     return NextResponse.json(classif, { status: 201 });
 }

@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { documenti_ce, macchinari, pratiche } from "@/lib/db/schema";
+import { documenti_ce, macchinari, pratiche, audit_log } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -49,6 +49,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         mandatario_ue: body.mandatario_ue,
         uploaded_by: user_id,
     }).returning();
+
+    if (doc) {
+        await db.insert(audit_log).values({
+            organization_id: org_id,
+            pratica_id: id,
+            user_id,
+            azione: "DOCUMENTO_CE_CARICATO",
+            entita_tipo: "documento_ce",
+            entita_id: doc.id,
+            dati_nuovi: { tipo_documento: doc.tipo_documento, nome_file: doc.nome_file },
+        });
+    }
 
     return NextResponse.json(doc, { status: 201 });
 }

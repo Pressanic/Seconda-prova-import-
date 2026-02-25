@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, CheckCircle, AlertTriangle, Percent } from "lucide-react";
 import type { HSResult } from "@/lib/services/hs-classifier";
+import { toast } from "@/hooks/useToast";
 
 interface HSClassificationWidgetProps {
     praticaId: string;
@@ -58,6 +59,7 @@ export default function HSClassificationWidget({
             }),
         });
         setSaved(true);
+        toast(`Codice HS ${result.hs_code} selezionato e salvato`, "success");
     };
 
     const getConfidenceColor = (c: number) =>

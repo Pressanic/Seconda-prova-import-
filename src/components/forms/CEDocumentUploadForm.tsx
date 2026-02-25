@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, Loader2, Paperclip } from "lucide-react";
+import { toast } from "@/hooks/useToast";
 
 interface CEDocumentUploadFormProps {
     praticaId: string;
@@ -77,10 +78,14 @@ export default function CEDocumentUploadForm({
                 }),
             });
             if (res.ok) {
+                toast("Documento CE caricato con successo", "success");
                 setOpen(false);
                 window.location.reload();
+            } else {
+                toast("Errore durante il salvataggio del documento", "error");
             }
         } catch (err: any) {
+            toast(err.message ?? "Errore upload", "error");
             setUploadProgress(`Errore: ${err.message}`);
         } finally {
             setIsLoading(false);
