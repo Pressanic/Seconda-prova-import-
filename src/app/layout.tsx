@@ -1,0 +1,19 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+
+export const metadata: Metadata = {
+  title: "ImportCompliance — Gestione Import Macchinari",
+  description:
+    "Piattaforma SaaS per la compliance CE e doganale di macchinari industriali importati dalla Cina.",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="it" className={inter.variable}>
+      <body>{children}</body>
+    </html>
+  );
+}

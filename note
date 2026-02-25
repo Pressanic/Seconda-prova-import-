@@ -1,0 +1,130 @@
+Realizza un software SaaS web-based che aiuti le aziende italiane a importare macchinari industriali (es. presse a iniezione plastica) dalla Cina, con focus esclusivo sulla gestione doganale, normativa e documentale dell’importazione verso l’Italia (Unione Europea).
+
+Il software deve essere progettato per ridurre il rischio di blocchi doganali, sanzioni amministrative e non conformità CE, strutturando in modo guidato e verificabile l’intero processo di compliance all’importazione.
+
+STRUTTURA DEL SOFTWARE
+Il software deve essere una piattaforma SaaS web-based strutturata in due sezioni principali, integrate ma logicamente distinte:
+SEZIONE 1 – Compliance CE e Normativa Macchine
+Obiettivo:
+Garantire che il macchinario importato sia conforme alle normative europee vigenti prima dello sdoganamento.
+
+La sezione deve includere:
+1. Anagrafica Macchinario
+Nome macchina
+Modello
+Anno produzione
+Numero seriale
+Stato (nuova / usata)
+Potenza elettrica
+Presenza sistemi idraulici/pneumatici
+Presenza automazioni/robot integrati
+Paese di destinazione (Italia o altro stato UE)
+2. Gestione Documentazione CE
+Upload e gestione dei seguenti documenti:
+Dichiarazione CE di Conformità
+Manuale d’uso e manutenzione (in lingua italiana)
+Fascicolo Tecnico (con checklist interna)
+Schemi elettrici
+Analisi dei rischi
+Eventuali certificazioni di componenti
+Per ogni documento il sistema deve:
+Validare presenza obbligatoria
+Verificare coerenza dati (modello, seriale, normativa citata)
+Segnalare normative obsolete (es. direttiva superata)
+Evidenziare campi mancanti (firma, data, mandatario UE)
+Output richiesto:
+Stato conformità (Compliant / Non Compliant / Rischio Alto)
+Checklist gap documentali
+Report PDF esportabile
+3. Verifica Organismo Notificato (se presente)
+Campo inserimento numero organismo
+Verifica presenza nella banca dati NANDO (simulata come placeholder API)
+Verifica ambito di autorizzazione
+Output:
+Valido / Non valido
+Alert rischio non riconoscimento CE
+SEZIONE 2 – Gestione Doganale e Classificazione HS/TARIC
+Obiettivo:
+Garantire corretta classificazione doganale e coerenza documentale per evitare blocchi in dogana.
+1. Classificazione Codice HS / TARIC
+Il sistema deve permettere:
+Inserimento descrizione tecnica macchina
+Inserimento potenza, funzione principale, tipologia lavorazione
+
+Il sistema deve:
+Suggerire codice HS coerente (mock logica rule-based)
+Permettere selezione codice TARIC UE
+Evidenziare eventuali misure restrittive associate
+2. Controllo Documenti di Trasporto
+Upload e verifica di:
+Bill of Lading (OBL)
+Fattura commerciale
+Packing list
+Il sistema deve controllare:
+Coerenza codice HS tra documenti
+Coerenza descrizione merce
+Coerenza quantità e peso
+Presenza dati obbligatori
+Output:
+Stato rischio doganale (Basso / Medio / Alto)
+Alert incoerenze
+
+FUNZIONALITÀ TRASVERSALI
+Il software deve includere:
+Dashboard Importazione
+Per ogni pratica di import:
+Stato compliance CE
+Stato rischio doganale
+Documenti mancanti
+Timeline attività
+Sistema di Rischio
+Calcolo score numerico (0–100) basato su:
+Documentazione mancante
+Normative obsolete
+Incoerenze HS
+Assenza verifica organismo notificato
+Ruoli Utente
+Admin aziendale
+Operatore documentale
+Consulente esterno (accesso limitato)
+
+CONTESTO OPERATIVO
+Le aziende italiane importano macchinari industriali dalla Cina con:
+Scarsa conoscenza normativa europea
+Documentazione fornita incompleta o non aggiornata
+Elevato rischio di blocchi doganali
+Responsabilità legale in capo all’importatore
+Il software deve:
+Strutturare il processo
+Ridurre errore umano
+Rendere verificabile ogni passaggio
+Centralizzare tutta la documentazione
+
+OBIETTIVO DEL SOFTWARE
+Ridurre il rischio doganale e normativo nelle importazioni di macchinari industriali dalla Cina verso l’Italia, rendendo il processo strutturato, verificabile e ripetibile.
+Il focus NON è la contabilità generale, ma esclusivamente la compliance tecnica e doganale.
+
+OUTPUT RICHIESTO
+Realizza un documento di progetto funzionale e tecnico per lo sviluppo dell’app da fornire al team di sviluppo.
+Il documento deve:
+Essere in formato Markdown
+Essere scritto in italiano
+Contenere:
+Architettura generale
+Struttura database (tabelle e relazioni)
+Flussi utente
+Specifiche funzionali dettagliate
+Specifiche tecniche API
+Struttura delle pagine frontend
+Logica di calcolo del rischio
+
+STACK TECNOLOGICO OBBLIGATORIO
+Next.js
+TailwindCSS
+NEON DB
+
+VINCOLI PROGETTUALI
+Architettura modulare
+Struttura scalabile per estensione futura ad altri paesi UE
+Predisposizione integrazione futura con API doganali reali
+Sistema pronto per integrazione futura con AI per analisi documentale
