@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add src/app/\\\\\\(app\\\\\\)/pratiche/nuova/page.tsx src/components/pdf/ReportDocument.tsx src/app/api/v1/pratiche/[id]/report/route.ts)",
+      "Bash(git push)",
+      "Bash(git add src/app/\\\\\\(app\\\\\\)/pratiche/nuova/page.tsx)",
+      "Bash(npm install @vercel/blob)",
+      "Bash(git add -A)"
+    ]
+  }
+}

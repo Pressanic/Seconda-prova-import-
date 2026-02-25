@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Upload, Loader2, Paperclip } from "lucide-react";
 
 export default function DoganaliUploadForm({
     praticaId,
@@ -10,22 +10,47 @@ export default function DoganaliUploadForm({
 }: { praticaId: string; tipoDocumento: string; existingId?: string }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+    const [fileName, setFileName] = useState<string | null>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
+
     const [form, setForm] = useState({
-        nome_file: "", codice_hs_nel_doc: "", valore_commerciale: "",
+        codice_hs_nel_doc: "", valore_commerciale: "",
         valuta: "USD", peso_doc_kg: "", descrizione_merce_doc: "",
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setLoading(true);
+        setUploadProgress(null);
+
         try {
+            const file = fileRef.current?.files?.[0];
+            let url_storage = "#";
+            let nome_file = `${tipoDocumento}.pdf`;
+
+            if (file) {
+                setUploadProgress("Caricamento file...");
+                const fd = new FormData();
+                fd.append("file", file);
+                const upRes = await fetch("/api/v1/upload", { method: "POST", body: fd });
+                if (!upRes.ok) {
+                    const err = await upRes.json();
+                    throw new Error(err.error ?? "Errore upload file");
+                }
+                const uploaded = await upRes.json();
+                url_storage = uploaded.url;
+                nome_file = uploaded.nome_file;
+            }
+
+            setUploadProgress("Salvataggio...");
             const res = await fetch(`/api/v1/pratiche/${praticaId}/documenti-doganali`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     tipo_documento: tipoDocumento,
-                    nome_file: form.nome_file || `${tipoDocumento}.pdf`,
-                    url_storage: "#",
+                    nome_file,
+                    url_storage,
                     codice_hs_nel_doc: form.codice_hs_nel_doc || null,
                     valore_commerciale: form.valore_commerciale || null,
                     valuta: form.valuta,
@@ -36,7 +61,11 @@ export default function DoganaliUploadForm({
                 }),
             });
             if (res.ok) { setOpen(false); window.location.reload(); }
-        } finally { setLoading(false); }
+        } catch (err: any) {
+            setUploadProgress(`Errore: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const inputClass = "w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
@@ -53,10 +82,27 @@ export default function DoganaliUploadForm({
             <div className="glass-card w-full max-w-md p-6">
                 <h3 className="text-lg font-semibold text-white mb-5">Registra Documento Doganale</h3>
                 <form onSubmit={handleSubmit} className="space-y-3">
+
                     <div>
-                        <label className="block text-xs text-slate-400 mb-1">Nome File</label>
-                        <input value={form.nome_file} onChange={e => setForm({ ...form, nome_file: e.target.value })} placeholder="bill_of_lading.pdf" className={inputClass} />
+                        <label className="block text-xs text-slate-400 mb-1">File</label>
+                        <div
+                            className="flex items-center gap-2 border border-dashed border-slate-600 rounded-lg px-3 py-2.5 cursor-pointer hover:border-blue-500 transition"
+                            onClick={() => fileRef.current?.click()}
+                        >
+                            <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="text-xs text-slate-400 truncate">
+                                {fileName ?? "Seleziona file (PDF, JPG, PNG — max 10 MB)"}
+                            </span>
+                        </div>
+                        <input
+                            ref={fileRef}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={e => setFileName(e.target.files?.[0]?.name ?? null)}
+                        />
                     </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs text-slate-400 mb-1">Codice HS nel Doc.</label>
@@ -83,6 +129,13 @@ export default function DoganaliUploadForm({
                         <label className="block text-xs text-slate-400 mb-1">Descrizione Merce nel Doc.</label>
                         <textarea value={form.descrizione_merce_doc} onChange={e => setForm({ ...form, descrizione_merce_doc: e.target.value })} rows={2} className={`${inputClass} resize-none`} />
                     </div>
+
+                    {uploadProgress && (
+                        <p className={`text-xs ${uploadProgress.startsWith("Errore") ? "text-red-400" : "text-blue-400"}`}>
+                            {uploadProgress}
+                        </p>
+                    )}
+
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={() => setOpen(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm transition">Annulla</button>
                         <button type="submit" disabled={loading} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">

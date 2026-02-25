@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Upload, Loader2, Paperclip } from "lucide-react";
 
 interface CEDocumentUploadFormProps {
     praticaId: string;
@@ -18,10 +18,11 @@ export default function CEDocumentUploadForm({
 }: CEDocumentUploadFormProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+    const [fileName, setFileName] = useState<string | null>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
 
     const [form, setForm] = useState({
-        nome_file: "",
         normativa_citata: "",
         normativa_valida: true,
         firmato: false,
@@ -29,19 +30,40 @@ export default function CEDocumentUploadForm({
         data_documento: "",
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsLoading(true);
+        setUploadProgress(null);
+
         try {
+            const file = fileRef.current?.files?.[0];
+            let url_storage = "#";
+            let nome_file = `${tipoDocumento}.pdf`;
+
+            if (file) {
+                setUploadProgress("Caricamento file...");
+                const fd = new FormData();
+                fd.append("file", file);
+                const upRes = await fetch("/api/v1/upload", { method: "POST", body: fd });
+                if (!upRes.ok) {
+                    const err = await upRes.json();
+                    throw new Error(err.error ?? "Errore upload file");
+                }
+                const uploaded = await upRes.json();
+                url_storage = uploaded.url;
+                nome_file = uploaded.nome_file;
+            }
+
+            setUploadProgress("Salvataggio metadati...");
             const res = await fetch(`/api/v1/pratiche/${praticaId}/documenti-ce`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     macchinario_id: macchinarioId,
                     tipo_documento: tipoDocumento,
-                    nome_file: form.nome_file || `${tipoDocumento}.pdf`,
-                    url_storage: "#", // placeholder - no Vercel Blob in dev
-                    normativa_citata: form.normativa_citata,
+                    nome_file,
+                    url_storage,
+                    normativa_citata: form.normativa_citata || null,
                     normativa_valida: form.normativa_valida,
                     firmato: form.firmato,
                     mandatario_ue: form.mandatario_ue || null,
@@ -55,10 +77,11 @@ export default function CEDocumentUploadForm({
                 }),
             });
             if (res.ok) {
-                setSuccess(true);
                 setOpen(false);
                 window.location.reload();
             }
+        } catch (err: any) {
+            setUploadProgress(`Errore: ${err.message}`);
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +94,7 @@ export default function CEDocumentUploadForm({
                 className="flex items-center gap-1.5 text-xs bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-1.5 rounded-lg transition"
             >
                 <Upload className="w-3.5 h-3.5" />
-                {existingId ? "Aggiungi" : "Carica"}
+                {existingId ? "Aggiorna" : "Carica"}
             </button>
         );
     }
@@ -81,15 +104,27 @@ export default function CEDocumentUploadForm({
             <div className="glass-card w-full max-w-md p-6">
                 <h3 className="text-lg font-semibold text-white mb-5">Registra Documento CE</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
+
                     <div>
-                        <label className="block text-sm text-slate-300 mb-1.5">Nome File</label>
+                        <label className="block text-sm text-slate-300 mb-1.5">File PDF</label>
+                        <div
+                            className="flex items-center gap-2 border border-dashed border-slate-600 rounded-lg px-4 py-3 cursor-pointer hover:border-blue-500 transition"
+                            onClick={() => fileRef.current?.click()}
+                        >
+                            <Paperclip className="w-4 h-4 text-slate-400 shrink-0" />
+                            <span className="text-sm text-slate-400 truncate">
+                                {fileName ?? "Seleziona file (PDF, JPG, PNG — max 10 MB)"}
+                            </span>
+                        </div>
                         <input
-                            value={form.nome_file}
-                            onChange={e => setForm({ ...form, nome_file: e.target.value })}
-                            placeholder="dichiarazione_ce_macchina.pdf"
-                            className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            ref={fileRef}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={e => setFileName(e.target.files?.[0]?.name ?? null)}
                         />
                     </div>
+
                     <div>
                         <label className="block text-sm text-slate-300 mb-1.5">Normativa Citata</label>
                         <input
@@ -127,6 +162,13 @@ export default function CEDocumentUploadForm({
                             <span className="text-sm text-slate-300">Documento firmato</span>
                         </label>
                     </div>
+
+                    {uploadProgress && (
+                        <p className={`text-xs ${uploadProgress.startsWith("Errore") ? "text-red-400" : "text-blue-400"}`}>
+                            {uploadProgress}
+                        </p>
+                    )}
+
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={() => setOpen(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm transition">
                             Annulla

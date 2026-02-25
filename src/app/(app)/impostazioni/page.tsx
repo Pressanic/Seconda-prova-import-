@@ -11,7 +11,7 @@ export default async function ImpostazioniPage() {
             title: "Organizzazione",
             desc: "Gestisci i dati della tua organizzazione, piano e configurazioni",
             icon: Building2,
-            href: "#",
+            href: "/impostazioni/organizzazione",
             color: "text-blue-400 bg-blue-500/10",
         },
         {

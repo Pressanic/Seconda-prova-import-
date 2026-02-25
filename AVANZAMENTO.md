@@ -114,16 +114,22 @@
 
 ### Phase 12 — Settings & Admin ✅
 - [x] Settings hub `/impostazioni` con 4 card (org, utenti, profilo, audit log)
-- [x] Gestione utenti `/impostazioni/utenti` (lista read-only)
+- [x] Gestione utenti `/impostazioni/utenti` — client component con invite, cambia ruolo, attiva/disattiva, elimina
 - [x] Profilo `/impostazioni/profilo`
 - [x] Audit log `/impostazioni/audit-log` (solo admin) — ultime 200 azioni
-- [ ] Form modifica organizzazione (link "#" ancora morto — backlog)
+- [x] Form modifica organizzazione `/impostazioni/organizzazione` — ragione sociale, P.IVA, PEC
+- [x] API `GET/PATCH /api/v1/organizzazione`
+- [x] API `GET/POST /api/v1/utenti` + `PATCH/DELETE /api/v1/utenti/[id]`
+- [x] Upload file reale via Vercel Blob — `POST /api/v1/upload`
+- [x] CEDocumentUploadForm aggiornato con file picker reale
+- [x] DoganaliUploadForm aggiornato con file picker reale
 
 ### Phase 13 — Verifica Finale ⏳
+- [ ] Aggiungere `BLOB_READ_WRITE_TOKEN` su Vercel (necessario per upload file)
 - [ ] Test endpoints API
 - [ ] Test flusso auth
 - [ ] Test wizard creazione pratica
-- [ ] Test flusso compliance CE
+- [ ] Test flusso compliance CE con upload file reale
 - [ ] Test classificazione HS
 - [ ] Test calcolo risk score
 - [ ] Verifica responsive design
