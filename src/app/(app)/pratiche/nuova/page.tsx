@@ -20,14 +20,14 @@ type Step1Data = z.infer<typeof step1Schema>;
 const step2Schema = z.object({
     nome_macchina: z.string().min(3, "Minimo 3 caratteri"),
     modello: z.string().min(2, "Minimo 2 caratteri"),
-    anno_produzione: z.coerce.number().min(1900).max(2026),
+    anno_produzione: z.number().int().min(1900).max(2026),
     numero_seriale: z.string().min(1, "Campo obbligatorio"),
     stato_macchina: z.enum(["nuova", "usata"]),
-    potenza_kw: z.coerce.number().optional(),
-    ha_sistemi_idraulici: z.boolean().default(false),
-    ha_sistemi_pneumatici: z.boolean().default(false),
-    ha_automazioni_robot: z.boolean().default(false),
-    paese_destinazione: z.string().length(2).default("IT"),
+    potenza_kw: z.number().optional(),
+    ha_sistemi_idraulici: z.boolean(),
+    ha_sistemi_pneumatici: z.boolean(),
+    ha_automazioni_robot: z.boolean(),
+    paese_destinazione: z.string().length(2),
     descrizione_tecnica: z.string().min(20, "Minimo 20 caratteri"),
     funzione_principale: z.string().min(1, "Campo obbligatorio"),
     tipologia_lavorazione: z.string().optional(),
@@ -174,7 +174,7 @@ export default function NuovaPraticaPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <FieldGroup label="Anno Produzione *" error={form2.formState.errors.anno_produzione?.message}>
-                            <input {...form2.register("anno_produzione")} type="number" placeholder="2025" className={inputClass} />
+                            <input {...form2.register("anno_produzione", { valueAsNumber: true })} type="number" placeholder="2025" className={inputClass} />
                         </FieldGroup>
                         <FieldGroup label="Numero Seriale *" error={form2.formState.errors.numero_seriale?.message}>
                             <input {...form2.register("numero_seriale")} placeholder="SN-XXXXX" className={inputClass} />
@@ -189,7 +189,7 @@ export default function NuovaPraticaPage() {
                             </select>
                         </FieldGroup>
                         <FieldGroup label="Potenza Elettrica (kW)" error={undefined}>
-                            <input {...form2.register("potenza_kw")} type="number" step="0.1" placeholder="45.5" className={inputClass} />
+                            <input {...form2.register("potenza_kw", { valueAsNumber: true })} type="number" step="0.1" placeholder="45.5" className={inputClass} />
                         </FieldGroup>
                     </div>
 

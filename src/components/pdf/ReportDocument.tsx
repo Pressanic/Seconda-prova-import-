@@ -142,7 +142,7 @@ interface ReportData {
     } | null;
     documenti_ce: Array<{
         tipo_documento: string;
-        nome_file: string;
+        nome_file: string | null;
         stato_validazione: string | null;
     }>;
     organismo?: {
@@ -152,7 +152,7 @@ interface ReportData {
     } | null;
     documenti_doganali: Array<{
         tipo_documento: string;
-        nome_file: string;
+        nome_file: string | null;
         stato_validazione: string | null;
     }>;
     riskScore?: {
@@ -344,7 +344,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                                 <Text style={[styles.tdText, { flex: 2 }]}>
                                     {DOC_TYPE_LABELS[doc.tipo_documento] ?? doc.tipo_documento}
                                 </Text>
-                                <Text style={[styles.tdTextSmall, { flex: 2 }]} numberOfLines={1}>{doc.nome_file}</Text>
+                                <Text style={[styles.tdTextSmall, { flex: 2 }]}>{doc.nome_file ?? "—"}</Text>
                                 <View style={{ flex: 1 }}>
                                     <Text style={getValidBadge(doc.stato_validazione)}>
                                         {doc.stato_validazione ?? "—"}
@@ -397,7 +397,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                                 <Text style={[styles.tdText, { flex: 2 }]}>
                                     {DOC_TYPE_LABELS[doc.tipo_documento] ?? doc.tipo_documento}
                                 </Text>
-                                <Text style={[styles.tdTextSmall, { flex: 2 }]} numberOfLines={1}>{doc.nome_file}</Text>
+                                <Text style={[styles.tdTextSmall, { flex: 2 }]}>{doc.nome_file ?? "—"}</Text>
                                 <View style={{ flex: 1 }}>
                                     <Text style={getValidBadge(doc.stato_validazione)}>
                                         {doc.stato_validazione ?? "—"}

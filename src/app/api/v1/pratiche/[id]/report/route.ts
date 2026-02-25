@@ -7,8 +7,9 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { createElement } from "react";
+import React from "react";
 import { ReportDocument } from "@/components/pdf/ReportDocument";
+import type { DocumentProps } from "@react-pdf/renderer";
 import { calcolaRiskScore } from "@/lib/services/risk-engine";
 
 export async function GET(
@@ -87,13 +88,15 @@ export async function GET(
     };
 
     // Generate PDF buffer
-    const buffer = await renderToBuffer(
-        createElement(ReportDocument, { data: reportData })
-    );
+    const element = React.createElement(
+        ReportDocument, { data: reportData }
+    ) as React.ReactElement<DocumentProps>;
+
+    const buffer = await renderToBuffer(element);
 
     const filename = `report-${pratica.codice_pratica.replace(/\//g, "-")}.pdf`;
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
         status: 200,
         headers: {
             "Content-Type": "application/pdf",
