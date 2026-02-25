@@ -176,11 +176,22 @@
 
 ---
 
-## Prossimi Step (in ordine di priorità)
+## Landing Page ✅
 
-1. **Phase 13** — Test e verifica finale di tutti i flussi
-2. Form modifica organizzazione `/impostazioni` (backlog, link "#" ancora non funzionante)
-3. Integrazione Vercel Blob storage reale per upload documenti
+| Componente | Stato |
+|-----------|-------|
+| `Navbar` — sticky glass, mobile hamburger, smooth scroll | ✅ |
+| `HeroSection` — headline, 4 bullet, 2 CTA, social proof bar | ✅ |
+| `FeaturesSection` — 4 feature block alternati con mock UI interattivi | ✅ |
+| `ReviewsSection` — 6 recensioni simulate, rating aggregato 4.9/5 | ✅ |
+| `PricingSection` — Free / Professional €79 / Enterprise custom | ✅ |
+| `Footer` — link sezioni, stato sistemi, copyright | ✅ |
+| `page.tsx` — landing se non loggato, redirect `/dashboard` se loggato | ✅ |
+| `globals.css` — `scroll-behavior: smooth` | ✅ |
+
+## Prossimi Step
+
+1. **Phase 13** — Test e verifica finale end-to-end su Vercel
 
 ---
 
