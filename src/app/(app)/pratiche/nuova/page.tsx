@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
@@ -61,7 +61,7 @@ export default function NuovaPraticaPage() {
 
     // ── Step 2 form ──
     const form2 = useForm<Step2Data>({
-        resolver: zodResolver(step2Schema),
+        resolver: zodResolver(step2Schema) as unknown as Resolver<Step2Data>,
         defaultValues: {
             stato_macchina: "nuova",
             paese_destinazione: "IT",
