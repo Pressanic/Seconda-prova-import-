@@ -94,18 +94,20 @@ async function getDashboardData(org_id: string) {
     // CE completeness: count macchinari with < 5 required docs
     const ceMap = new Map<string, Set<string>>();
     for (const doc of ceDocs) {
+        if (!doc.macchinario_id || !doc.tipo_documento) continue;
         if (!ceMap.has(doc.macchinario_id)) ceMap.set(doc.macchinario_id, new Set());
         ceMap.get(doc.macchinario_id)!.add(doc.tipo_documento);
     }
-    const ce_incompleta = activeMacchinariList.filter(m => (ceMap.get(m.id)?.size ?? 0) < 5).length;
+    const ce_incompleta = activeMacchinariList.filter(m => m.id && (ceMap.get(m.id)?.size ?? 0) < 5).length;
 
     // Doganali completeness: count pratiche with < 3 required docs
     const doganaliMap = new Map<string, Set<string>>();
     for (const doc of doganalDocs) {
+        if (!doc.pratica_id || !doc.tipo_documento) continue;
         if (!doganaliMap.has(doc.pratica_id)) doganaliMap.set(doc.pratica_id, new Set());
         doganaliMap.get(doc.pratica_id)!.add(doc.tipo_documento);
     }
-    const doganali_incompleti = activePraticheList.filter(p => (doganaliMap.get(p.id)?.size ?? 0) < 3).length;
+    const doganali_incompleti = activePraticheList.filter(p => p.id && (doganaliMap.get(p.id)?.size ?? 0) < 3).length;
 
     const senza_dimensioni = activeMacchinariList.filter(m => !m.lunghezza_cm).length;
 

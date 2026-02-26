@@ -34,15 +34,20 @@ export async function POST(req: NextRequest) {
             ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: file_base64 } }
             : { type: "image" as const, source: { type: "base64" as const, media_type: mediaType as "image/jpeg" | "image/png", data: file_base64 } };
 
-        const response = await client.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 1024,
-            ...(isPdf ? { betas: ["pdfs-2024-09-25"] } : {}),
-            messages: [{
-                role: "user",
-                content: [contentBlock as any, { type: "text", text: prompt }],
-            }],
-        } as any);
+        const messages = [{ role: "user" as const, content: [contentBlock as any, { type: "text" as const, text: prompt }] }];
+
+        const response = isPdf
+            ? await (client.beta.messages.create as any)({
+                model: "claude-haiku-4-5-20251001",
+                max_tokens: 1024,
+                betas: ["pdfs-2024-09-25"],
+                messages,
+            })
+            : await client.messages.create({
+                model: "claude-haiku-4-5-20251001",
+                max_tokens: 1024,
+                messages,
+            } as any);
 
         const text = response.content[0]?.type === "text" ? response.content[0].text.trim() : "{}";
 
