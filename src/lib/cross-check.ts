@@ -17,9 +17,10 @@ export interface CrossCheckAnomalia {
 
 export interface CrossCheckResult {
     anomalie: CrossCheckAnomalia[];
-    score_coerenza: number; // 0–100
-    score_ce: number;       // 0–100
-    score_doganale: number; // 0–100
+    score_coerenza: number;    // 0–100
+    score_ce: number;          // 0–100
+    score_doganale: number;    // 0–100
+    cap_score_globale: number; // 100 | 65 | 45 — limite massimo score globale per anomalie critiche
 }
 
 // ─── Tipi di input ────────────────────────────────────────────────────────────
@@ -466,5 +467,14 @@ function buildResult(
         .reduce((sum, a) => sum + a.penalita, 0);
     const score_coerenza = Math.max(0, 100 - penalitaCoer);
 
-    return { anomalie, score_ce, score_doganale, score_coerenza };
+    // Cap sulle anomalie critiche: un'anomalia critica non può essere mascherata
+    // da score alti in altre categorie.
+    // 1 critica  → score globale max 65 (livello "medio")
+    // 2+ critiche → score globale max 45 (livello "alto")
+    // Questo cap viene applicato nel calcolo dello score_globale in route.ts,
+    // ma lo esportiamo qui per usarlo anche nel frontend.
+    const critiche = anomalie.filter(a => a.severita === "critica").length;
+    const cap_score_globale = critiche >= 2 ? 45 : critiche === 1 ? 65 : 100;
+
+    return { anomalie, score_ce, score_doganale, score_coerenza, cap_score_globale };
 }

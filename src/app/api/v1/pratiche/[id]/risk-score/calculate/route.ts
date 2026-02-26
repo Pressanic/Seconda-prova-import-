@@ -96,10 +96,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     const pesoDog = isUsata ? 0.25 : 0.35;
     const pesoCoer = 0.15;
 
-    const score_globale = Math.round(
-        crossCheckResult.score_ce * pesoCE +
-        crossCheckResult.score_doganale * pesoDog +
-        crossCheckResult.score_coerenza * pesoCoer
+    const score_globale = Math.min(
+        crossCheckResult.cap_score_globale,
+        Math.round(
+            crossCheckResult.score_ce * pesoCE +
+            crossCheckResult.score_doganale * pesoDog +
+            crossCheckResult.score_coerenza * pesoCoer
+        )
     );
 
     const livello_rischio =
