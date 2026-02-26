@@ -1,36 +1,41 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pratiche, risk_scores } from "@/lib/db/schema";
-import { eq, desc, sql, count, and } from "drizzle-orm";
+import { pratiche, risk_scores, macchinari, documenti_ce, documenti_doganali } from "@/lib/db/schema";
+import { eq, desc, sql, count, and, isNull, inArray } from "drizzle-orm";
 import Link from "next/link";
 import {
     FolderOpen, AlertTriangle, TrendingUp, BarChart2, ArrowRight, Plus,
-    CheckCircle, XCircle, Clock, ShieldAlert
+    Clock, ShieldAlert
 } from "lucide-react";
 import RiskScoreBadge from "@/components/ui/RiskScoreBadge";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { formatDate, getRiskColor } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 async function getDashboardData(org_id: string) {
-    const [pratiche_attive] = await db
-        .select({ count: count() })
-        .from(pratiche)
-        .where(and(eq(pratiche.organization_id, org_id), sql`${pratiche.stato} NOT IN ('bloccata')`));
+    const [
+        pratiche_attive_res,
+        pratiche_a_rischio_res,
+        score_res,
+        lista,
+        senza_data_res,
+        activeMacchinariList,
+        activePraticheList,
+    ] = await Promise.all([
+        db.select({ count: count() })
+            .from(pratiche)
+            .where(and(eq(pratiche.organization_id, org_id), sql`${pratiche.stato} NOT IN ('bloccata')`)),
 
-    const [pratiche_a_rischio] = await db
-        .select({ count: count() })
-        .from(risk_scores)
-        .innerJoin(pratiche, eq(risk_scores.pratica_id, pratiche.id))
-        .where(and(eq(pratiche.organization_id, org_id), sql`${risk_scores.livello_rischio} IN ('alto', 'critico')`));
+        db.select({ count: count() })
+            .from(risk_scores)
+            .innerJoin(pratiche, eq(risk_scores.pratica_id, pratiche.id))
+            .where(and(eq(pratiche.organization_id, org_id), sql`${risk_scores.livello_rischio} IN ('alto', 'critico')`)),
 
-    const [score_row] = await db
-        .select({ avg: sql<number>`COALESCE(ROUND(AVG(${risk_scores.score_globale})), 0)` })
-        .from(risk_scores)
-        .innerJoin(pratiche, eq(risk_scores.pratica_id, pratiche.id))
-        .where(eq(pratiche.organization_id, org_id));
+        db.select({ avg: sql<number>`COALESCE(ROUND(AVG(${risk_scores.score_globale})), 0)` })
+            .from(risk_scores)
+            .innerJoin(pratiche, eq(risk_scores.pratica_id, pratiche.id))
+            .where(eq(pratiche.organization_id, org_id)),
 
-    const lista = await db
-        .select({
+        db.select({
             id: pratiche.id,
             codice_pratica: pratiche.codice_pratica,
             nome_pratica: pratiche.nome_pratica,
@@ -40,16 +45,78 @@ async function getDashboardData(org_id: string) {
             score_globale: risk_scores.score_globale,
             livello_rischio: risk_scores.livello_rischio,
         })
-        .from(pratiche)
-        .leftJoin(risk_scores, eq(risk_scores.pratica_id, pratiche.id))
-        .where(eq(pratiche.organization_id, org_id))
-        .orderBy(desc(pratiche.created_at))
-        .limit(10);
+            .from(pratiche)
+            .leftJoin(risk_scores, eq(risk_scores.pratica_id, pratiche.id))
+            .where(eq(pratiche.organization_id, org_id))
+            .orderBy(desc(pratiche.created_at))
+            .limit(10),
+
+        db.select({ count: count() })
+            .from(pratiche)
+            .where(and(
+                eq(pratiche.organization_id, org_id),
+                isNull(pratiche.data_prevista_arrivo),
+                sql`${pratiche.stato} NOT IN ('bloccata', 'approvata')`
+            )),
+
+        db.select({ id: macchinari.id, lunghezza_cm: macchinari.lunghezza_cm })
+            .from(macchinari)
+            .innerJoin(pratiche, eq(macchinari.pratica_id, pratiche.id))
+            .where(and(eq(pratiche.organization_id, org_id), sql`${pratiche.stato} NOT IN ('bloccata', 'approvata')`)),
+
+        db.select({ id: pratiche.id })
+            .from(pratiche)
+            .where(and(eq(pratiche.organization_id, org_id), sql`${pratiche.stato} NOT IN ('bloccata', 'approvata')`)),
+    ]);
+
+    const macchinarioIds = activeMacchinariList.map(m => m.id).filter((id): id is string => id !== null);
+    const praticaIds = activePraticheList.map(p => p.id).filter((id): id is string => id !== null);
+
+    const [ceDocs, doganalDocs] = await Promise.all([
+        macchinarioIds.length > 0
+            ? db.select({ macchinario_id: documenti_ce.macchinario_id, tipo_documento: documenti_ce.tipo_documento })
+                .from(documenti_ce)
+                .where(and(
+                    inArray(documenti_ce.macchinario_id, macchinarioIds),
+                    sql`${documenti_ce.tipo_documento} IN ('dichiarazione_ce', 'manuale_uso', 'fascicolo_tecnico', 'analisi_rischi', 'schemi_elettrici')`
+                ))
+            : Promise.resolve([]),
+        praticaIds.length > 0
+            ? db.select({ pratica_id: documenti_doganali.pratica_id, tipo_documento: documenti_doganali.tipo_documento })
+                .from(documenti_doganali)
+                .where(and(
+                    inArray(documenti_doganali.pratica_id, praticaIds),
+                    sql`${documenti_doganali.tipo_documento} IN ('bill_of_lading', 'fattura_commerciale', 'packing_list')`
+                ))
+            : Promise.resolve([]),
+    ]);
+
+    // CE completeness: count macchinari with < 5 required docs
+    const ceMap = new Map<string, Set<string>>();
+    for (const doc of ceDocs) {
+        if (!ceMap.has(doc.macchinario_id)) ceMap.set(doc.macchinario_id, new Set());
+        ceMap.get(doc.macchinario_id)!.add(doc.tipo_documento);
+    }
+    const ce_incompleta = activeMacchinariList.filter(m => (ceMap.get(m.id)?.size ?? 0) < 5).length;
+
+    // Doganali completeness: count pratiche with < 3 required docs
+    const doganaliMap = new Map<string, Set<string>>();
+    for (const doc of doganalDocs) {
+        if (!doganaliMap.has(doc.pratica_id)) doganaliMap.set(doc.pratica_id, new Set());
+        doganaliMap.get(doc.pratica_id)!.add(doc.tipo_documento);
+    }
+    const doganali_incompleti = activePraticheList.filter(p => (doganaliMap.get(p.id)?.size ?? 0) < 3).length;
+
+    const senza_dimensioni = activeMacchinariList.filter(m => !m.lunghezza_cm).length;
 
     return {
-        pratiche_attive: pratiche_attive?.count ?? 0,
-        pratiche_a_rischio: pratiche_a_rischio?.count ?? 0,
-        score_medio: Number(score_row?.avg ?? 0),
+        pratiche_attive: pratiche_attive_res[0]?.count ?? 0,
+        pratiche_a_rischio: pratiche_a_rischio_res[0]?.count ?? 0,
+        score_medio: Number(score_res[0]?.avg ?? 0),
+        pratiche_senza_data: senza_data_res[0]?.count ?? 0,
+        ce_incompleta,
+        doganali_incompleti,
+        senza_dimensioni,
         lista,
     };
 }
@@ -87,7 +154,7 @@ export default async function DashboardPage() {
         },
         {
             label: "Pratiche Totali",
-            value: (data?.lista?.length ?? 0),
+            value: data?.lista?.length ?? 0,
             icon: BarChart2,
             color: "text-purple-400",
             bg: "bg-purple-500/10",
@@ -210,7 +277,81 @@ export default async function DashboardPage() {
                 )}
             </div>
 
-            {/* Quick info */}
+            {/* Alerts */}
+            {data && (data.pratiche_senza_data > 0 || data.ce_incompleta > 0 || data.doganali_incompleti > 0 || data.senza_dimensioni > 0) && (
+                <div className="space-y-3">
+                    <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Avvisi</h2>
+
+                    {data.pratiche_senza_data > 0 && (
+                        <div className="glass-card p-4 border border-yellow-500/20">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-yellow-300">
+                                            {data.pratiche_senza_data} {data.pratiche_senza_data === 1 ? "pratica" : "pratiche"} senza data di arrivo prevista
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">Inserisci la data per monitorare correttamente le scadenze</p>
+                                    </div>
+                                </div>
+                                <Link href="/pratiche" className="text-xs text-yellow-400 hover:text-yellow-300 transition shrink-0">Gestisci →</Link>
+                            </div>
+                        </div>
+                    )}
+
+                    {data.ce_incompleta > 0 && (
+                        <div className="glass-card p-4 border border-orange-500/20">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-orange-400 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-orange-300">
+                                            {data.ce_incompleta} {data.ce_incompleta === 1 ? "macchinario" : "macchinari"} con documenti CE incompleti
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">Carica i documenti CE obbligatori: Dichiarazione CE, Manuale, Fascicolo, Analisi Rischi, Schemi Elettrici</p>
+                                    </div>
+                                </div>
+                                <Link href="/pratiche" className="text-xs text-orange-400 hover:text-orange-300 transition shrink-0">Completa →</Link>
+                            </div>
+                        </div>
+                    )}
+
+                    {data.doganali_incompleti > 0 && (
+                        <div className="glass-card p-4 border border-orange-500/20">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-orange-400 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-orange-300">
+                                            {data.doganali_incompleti} {data.doganali_incompleti === 1 ? "pratica" : "pratiche"} con documenti doganali incompleti
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">Mancano uno o più tra: Bill of Lading, Fattura Commerciale, Packing List</p>
+                                    </div>
+                                </div>
+                                <Link href="/pratiche" className="text-xs text-orange-400 hover:text-orange-300 transition shrink-0">Completa →</Link>
+                            </div>
+                        </div>
+                    )}
+
+                    {data.senza_dimensioni > 0 && (
+                        <div className="glass-card p-4 border border-slate-600/40">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-slate-400 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-300">
+                                            {data.senza_dimensioni} {data.senza_dimensioni === 1 ? "macchinario" : "macchinari"} senza dimensioni fisiche
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Le dimensioni (L × P × H) sono utili per la pianificazione logistica</p>
+                                    </div>
+                                </div>
+                                <Link href="/pratiche" className="text-xs text-slate-400 hover:text-slate-300 transition shrink-0">Inserisci →</Link>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {!org_id && (
                 <div className="glass-card p-6 border border-yellow-500/20">
                     <div className="flex items-start gap-3">

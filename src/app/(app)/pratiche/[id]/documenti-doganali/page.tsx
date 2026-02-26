@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { CheckCircle, Circle, XCircle, Minus, Package, FileText, Ship } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import DoganaliUploadForm from "@/components/forms/DoganaliUploadForm";
+import DocumentUploadModal from "@/components/forms/DocumentUploadModal";
 
 const DOC_TYPES = [
     { tipo: "bill_of_lading", label: "Bill of Lading (OBL)", required: true, icon: Ship },
@@ -154,7 +154,7 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
                                         )}
                                     </div>
                                 </div>
-                                <DoganaliUploadForm praticaId={id} tipoDocumento={tipo} existingId={doc?.id} />
+                                <DocumentUploadModal category="doganale" praticaId={id} tipoDocumento={tipo} tipoLabel={label} existingId={doc?.id} />
                             </div>
                         );
                     })}

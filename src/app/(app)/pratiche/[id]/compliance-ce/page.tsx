@@ -9,7 +9,7 @@ import {
     Shield, ExternalLink
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import CEDocumentUploadForm from "@/components/forms/CEDocumentUploadForm";
+import DocumentUploadModal from "@/components/forms/DocumentUploadModal";
 
 const DOC_TYPES = [
     { tipo: "dichiarazione_ce", label: "Dichiarazione CE di Conformità", ref: "Reg. UE 2023/1230, All. IV", required: true },
@@ -138,10 +138,12 @@ export default async function ComplianceCEPage({ params }: { params: Promise<{ i
                                         <div className="flex items-center gap-2 shrink-0">
                                             <span className={`text-xs font-medium ${color}`}>{statoLabel}</span>
                                             {macchinario && (
-                                                <CEDocumentUploadForm
+                                                <DocumentUploadModal
+                                                    category="ce"
                                                     praticaId={id}
                                                     macchinarioId={macchinario.id}
                                                     tipoDocumento={tipo}
+                                                    tipoLabel={label}
                                                     existingId={doc?.id}
                                                 />
                                             )}

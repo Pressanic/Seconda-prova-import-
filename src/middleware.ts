@@ -1,24 +1,30 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Public routes accessible without authentication
 const PUBLIC_ROUTES = ["/", "/login"];
 
-export default auth((req) => {
-    const { nextUrl, auth: session } = req;
-    const isLoggedIn = !!session?.user;
-    const isAuthPage = nextUrl.pathname.startsWith("/login");
+export function middleware(req: NextRequest) {
+    const { nextUrl, cookies } = req;
+
     const isApiAuth = nextUrl.pathname.startsWith("/api/auth");
     const isPublic = PUBLIC_ROUTES.includes(nextUrl.pathname);
 
-    // Allow auth API routes
+    // Always allow auth API routes
     if (isApiAuth) return NextResponse.next();
 
-    // Allow public routes (landing page, login)
+    // Check for NextAuth JWT session cookie (works in both dev and prod)
+    const sessionCookie =
+        cookies.get("next-auth.session-token") ||
+        cookies.get("__Secure-next-auth.session-token") ||
+        cookies.get("authjs.session-token") ||
+        cookies.get("__Secure-authjs.session-token");
+    const isLoggedIn = !!sessionCookie;
+
+    // Allow public routes for unauthenticated users
     if (isPublic && !isLoggedIn) return NextResponse.next();
 
-    // Redirect to dashboard if already authenticated and on login or landing
-    if (isLoggedIn && (isAuthPage || nextUrl.pathname === "/")) {
+    // Redirect to dashboard if already authenticated and on landing or login
+    if (isLoggedIn && isPublic) {
         return NextResponse.redirect(new URL("/dashboard", nextUrl));
     }
 
@@ -28,7 +34,7 @@ export default auth((req) => {
     }
 
     return NextResponse.next();
-});
+}
 
 export const config = {
     matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)"],

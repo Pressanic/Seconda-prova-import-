@@ -45,6 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         descrizione_tecnica: body.descrizione_tecnica,
         funzione_principale: body.funzione_principale,
         tipologia_lavorazione: body.tipologia_lavorazione,
+        lunghezza_cm: body.lunghezza_cm ?? null,
+        larghezza_cm: body.larghezza_cm ?? null,
+        altezza_cm: body.altezza_cm ?? null,
     }).returning();
 
     return NextResponse.json(macch, { status: 201 });
@@ -76,6 +79,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             descrizione_tecnica: body.descrizione_tecnica,
             funzione_principale: body.funzione_principale,
             tipologia_lavorazione: body.tipologia_lavorazione,
+            lunghezza_cm: body.lunghezza_cm ?? null,
+            larghezza_cm: body.larghezza_cm ?? null,
+            altezza_cm: body.altezza_cm ?? null,
             updated_at: new Date(),
         })
         .where(eq(macchinari.pratica_id, id))
