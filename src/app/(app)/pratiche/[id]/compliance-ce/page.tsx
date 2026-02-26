@@ -94,7 +94,7 @@ export default async function ComplianceCEPage({ params }: { params: Promise<{ i
                             const doc = docsByTipo[tipo];
                             const stato = doc?.stato_validazione ?? "da_verificare";
                             const { icon: Icon, color, label: statoLabel } = STATO_CONFIG[stato] ?? STATO_CONFIG.da_verificare;
-                            const anomalie = (doc?.anomalie_rilevate as any[]) ?? [];
+                            const anomalie = ((doc?.anomalie_rilevate as any[]) ?? []).filter((a: any) => a.messaggio || a.message);
 
                             return (
                                 <div key={tipo} className="px-6 py-4">
