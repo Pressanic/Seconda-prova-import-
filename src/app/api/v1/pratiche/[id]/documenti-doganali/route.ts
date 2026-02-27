@@ -45,6 +45,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         valuta: body.valuta ?? "USD",
         incoterms_doc: body.incoterms_doc ?? null,
         numero_colli_doc: body.numero_colli_doc ?? null,
+        data_documento: body.data_documento ?? null,
+        numero_riferimento_doc: body.numero_riferimento_doc ?? null,
         uploaded_by: user_id,
     }).returning();
 

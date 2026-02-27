@@ -401,6 +401,7 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
         const file = selectedFile;
         if (!file) { setStep(2); return; }
         setIsAnalyzing(true);
+        let shouldBlockStep2 = false;
         try {
             const base64 = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
@@ -423,25 +424,28 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
                     setAiAnomalies(anomalie);
                 }
 
-                // Warn if document type is wrong
+                // Block step 2 if document type is wrong — don't allow saving wrong docs
                 if (tipo_documento_verificato === "altro") {
-                    toast(`Documento non corretto: l'AI ha rilevato "${tipo_documento_rilevato ?? "tipo sconosciuto"}" — verifica il file caricato`, "error");
+                    toast(`Documento non corretto: l'AI ha rilevato "${tipo_documento_rilevato ?? "tipo sconosciuto"}" invece di "${tipoLabel}" — carica il file corretto`, "error");
+                    shouldBlockStep2 = true;
                 } else if (Array.isArray(anomalie) && anomalie.length > 0) {
                     toast(`Dati estratti — ${anomalie.length} problema/i rilevato/i dall'AI, verificali prima di salvare`, "info");
                 } else {
                     toast("Dati estratti con successo — verifica e salva", "info");
                 }
 
-                const normalized = normalizeExtracted(formFields);
-                setExtracted(normalized);
-                setForm(normalized);
+                if (!shouldBlockStep2) {
+                    const normalized = normalizeExtracted(formFields);
+                    setExtracted(normalized);
+                    setForm(normalized);
+                }
             }
         } catch (err: any) {
             const msg = err?.message ?? "Errore analisi AI";
             toast(`Analisi AI non riuscita — compila i campi manualmente (${msg})`, "error");
         } finally {
             setIsAnalyzing(false);
-            setStep(2);
+            if (!shouldBlockStep2) setStep(2);
         }
     };
 
@@ -540,6 +544,34 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
                 const url = isUpdate
                     ? `/api/v1/pratiche/${praticaId}/documenti-doganali/${existingId}`
                     : `/api/v1/pratiche/${praticaId}/documenti-doganali`;
+
+                // Map type-specific date/reference fields to generic columns
+                let data_documento: string | null = null;
+                let numero_riferimento_doc: string | null = null;
+                if (tipoDocumento === "bill_of_lading") {
+                    data_documento = form.data_bl || null;
+                    numero_riferimento_doc = form.numero_bl || null;
+                } else if (tipoDocumento === "fattura_commerciale") {
+                    data_documento = form.data_fattura || null;
+                    numero_riferimento_doc = form.numero_fattura || null;
+                } else if (tipoDocumento === "certificato_origine") {
+                    data_documento = form.data_certificato || null;
+                    numero_riferimento_doc = form.numero_certificato || null;
+                } else if (tipoDocumento === "insurance_certificate") {
+                    data_documento = form.data_copertura_da || null;
+                    numero_riferimento_doc = form.numero_polizza || null;
+                }
+
+                // Determine validation status based on document type
+                let stato_validazione_dog = "da_verificare";
+                if (tipoDocumento === "bill_of_lading") {
+                    stato_validazione_dog = (form.numero_bl && form.porto_carico && form.porto_scarico && form.peso_doc_kg) ? "valido" : "attenzione";
+                } else if (tipoDocumento === "fattura_commerciale") {
+                    stato_validazione_dog = (form.valore_commerciale && form.valuta && form.codice_hs_nel_doc) ? "valido" : "attenzione";
+                } else if (tipoDocumento === "packing_list") {
+                    stato_validazione_dog = (form.numero_colli && form.peso_doc_kg) ? "valido" : "attenzione";
+                }
+
                 const res = await fetch(url, {
                     method,
                     headers: { "Content-Type": "application/json" },
@@ -553,7 +585,9 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
                         descrizione_merce_doc: form.descrizione_merce_doc || null,
                         incoterms_doc: form.incoterms_doc || null,
                         numero_colli_doc: form.numero_colli ? parseInt(form.numero_colli) : null,
-                        stato_validazione: "da_verificare",
+                        data_documento,
+                        numero_riferimento_doc,
+                        stato_validazione: stato_validazione_dog,
                         anomalie_rilevate: [{ dati_extra }],
                     }),
                 });

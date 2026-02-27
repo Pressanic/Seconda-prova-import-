@@ -16,7 +16,12 @@ export const EXTRACTION_PROMPTS: Record<string, string> = {
     // Contiene: identificazione macchina, fabbricante, norme applicate, firma
     // Cross-check con: macchinario (marca, modello, numero_seriale, anno_produzione)
     dichiarazione_ce: `Sei un esperto di conformità CE per macchinari industriali (${normativaAttuale}).
-Analizza questa Dichiarazione CE di Conformità ed estrai le informazioni richieste.
+
+STEP 1 — VERIFICA TIPO DOCUMENTO:
+Stabilisci se il documento è effettivamente una Dichiarazione CE di Conformità (Declaration of Conformity / DoC).
+Non è una dichiarazione CE se è: un manuale d'uso, un fascicolo tecnico, una fattura, un certificato di origine, un B/L, un certificato di collaudo, ecc.
+
+STEP 2 — ESTRAZIONE E VALIDAZIONE:
 Per le norme armonizzate, cerca specificamente ${normaIniezione}, ${normaRischi}, ${normaElettrica} e qualsiasi altra norma EN/ISO citata.
 
 IMPORTANTE — normativa_valida: determina se la direttiva/regolamento principale citato è attualmente in vigore:
@@ -28,6 +33,8 @@ IMPORTANTE — normativa_valida: determina se la direttiva/regolamento principal
 
 Restituisci SOLO questo JSON (null se non trovato):
 {
+  "tipo_documento_verificato": "dichiarazione_ce",
+  "tipo_documento_rilevato": null,
   "normativa_citata": "es. ${normativaAttuale}",
   "normativa_valida": true,
   "norme_armonizzate": ["${normaIniezione}", "${normaRischi}"],
@@ -40,8 +47,14 @@ Restituisci SOLO questo JSON (null se non trovato):
   "numero_seriale": "numero di serie",
   "anno_produzione": 2024,
   "firmato": true,
-  "firmatario": "nome e qualifica del firmatario"
-}`,
+  "firmatario": "nome e qualifica del firmatario",
+  "anomalie": []
+}
+
+REGOLE:
+- Se il documento NON è una dichiarazione CE: tipo_documento_verificato = "altro", tipo_documento_rilevato = tipo rilevato (es. "manuale d'uso"), aggiungi anomalia CE-DOC-000
+- Se normativa_valida è false: aggiungi { "codice": "CE-NORM-001", "messaggio": "Normativa non vigente o non applicabile (Dir. 2006/42/CE richiesta)", "severity": "alta" }
+- Se firmato è false: aggiungi { "codice": "CE-FIELD-001", "messaggio": "Firma mancante nella dichiarazione CE", "severity": "media" }`,
 
     // ─── CE — MANUALE D'USO ───────────────────────────────────────────────────
     // Dir. 2006/42/CE, Art. 10 + All. I § 1.7.4 — obbligatorio in italiano per mercato IT/UE
@@ -121,16 +134,27 @@ REGOLE:
 
     // ─── CE — ANALISI DEI RISCHI ──────────────────────────────────────────────
     analisi_rischi: `Sei un esperto di sicurezza macchine (${normaRischi}, ${normaIniezione}).
-Analizza questo documento di Analisi dei Rischi e restituisci SOLO questo JSON (null se non trovato):
+
+STEP 1 — VERIFICA TIPO DOCUMENTO:
+Stabilisci se il documento è effettivamente un'Analisi dei Rischi / Valutazione del Rischio per macchinari.
+Non è un'analisi dei rischi se è: una dichiarazione CE, un manuale d'uso, una fattura, un certificato, ecc.
+
+STEP 2 — ESTRAZIONE:
+Restituisci SOLO questo JSON (null se non trovato):
 {
+  "tipo_documento_verificato": "analisi_rischi",
+  "tipo_documento_rilevato": null,
   "metodologia": "${normaRischi}",
   "norme_armonizzate": ["lista norme citate"],
   "data_valutazione": "YYYY-MM-DD",
   "firmatario": "nome e qualifica",
   "nome_macchina": "nome della macchina se presente",
   "tratta_sistemi_idraulici": false,
-  "tratta_sistemi_elettrici": true
-}`,
+  "tratta_sistemi_elettrici": true,
+  "anomalie": []
+}
+
+REGOLA: Se il documento NON è un'analisi dei rischi: tipo_documento_verificato = "altro", tipo_documento_rilevato = tipo rilevato, aggiungi anomalia CE-DOC-000`,
 
     // ─── CE — SCHEMI ELETTRICI ────────────────────────────────────────────────
     schemi_elettrici: `Sei un esperto di impiantistica elettrica industriale (${normaElettrica}).

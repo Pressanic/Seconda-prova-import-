@@ -35,9 +35,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if ("peso_doc_kg" in body)           updates.peso_doc_kg = body.peso_doc_kg?.toString();
     if ("descrizione_merce_doc" in body) updates.descrizione_merce_doc = body.descrizione_merce_doc;
     if ("incoterms_doc" in body)         updates.incoterms_doc = body.incoterms_doc;
-    if ("numero_colli_doc" in body)      updates.numero_colli_doc = body.numero_colli_doc;
-    if ("stato_validazione" in body)     updates.stato_validazione = body.stato_validazione;
-    if ("anomalie_rilevate" in body)     updates.anomalie_rilevate = body.anomalie_rilevate;
+    if ("numero_colli_doc" in body)          updates.numero_colli_doc = body.numero_colli_doc;
+    if ("data_documento" in body)            updates.data_documento = body.data_documento;
+    if ("numero_riferimento_doc" in body)    updates.numero_riferimento_doc = body.numero_riferimento_doc;
+    if ("stato_validazione" in body)         updates.stato_validazione = body.stato_validazione;
+    if ("anomalie_rilevate" in body)         updates.anomalie_rilevate = body.anomalie_rilevate;
 
     let doc: any;
     try {

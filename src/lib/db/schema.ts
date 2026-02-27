@@ -230,6 +230,11 @@ export const documenti_doganali = pgTable("documenti_doganali", {
     incoterms_doc: varchar("incoterms_doc", { length: 10 }),
     // cross-check con pratica.incoterms
     numero_colli_doc: integer("numero_colli_doc"),
+    // ─── Riferimento documento ────────────────────────────────────────────────
+    data_documento: date("data_documento"),
+    // data del documento: data_bl, data_fattura, data_certificato, ecc.
+    numero_riferimento_doc: varchar("numero_riferimento_doc", { length: 100 }),
+    // numero univoco: numero_bl, numero_fattura, numero_certificato, ecc.
     // ─── Cross-check componenti ───────────────────────────────────────────────
     componenti_trovati: jsonb("componenti_trovati").default([]),
     // array di { componente_id, trovato: bool, confermato_manualmente: bool }
