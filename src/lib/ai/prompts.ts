@@ -1,20 +1,27 @@
 // Contesto applicativo: ImportCompliance per presse ad iniezione plastica da Cina → Italia/UE
-// Normativa di riferimento attuale: Dir. 2006/42/CE (obbligatoria fino al 20/01/2027)
-// Normativa futura: Reg. UE 2023/1230 (applicabile dal 20/01/2027)
-// Norma armonizzata specifica: EN ISO 20430:2021 (presse ad iniezione per gomma/plastica)
+// I riferimenti normativi sono centralizzati in src/lib/normative-config.ts
+
+import { NORMATIVE, getNormativaVigenteMacchine } from "@/lib/normative-config";
+
+const normativaAttuale = getNormativaVigenteMacchine().codice; // Dir. 2006/42/CE o Reg. UE 2023/1230
+const normaIniezione   = NORMATIVE.EN_ISO_20430_2020.codice;  // EN ISO 20430:2020
+const normaRischi      = NORMATIVE.ISO_12100_2010.codice;     // ISO 12100:2010
+const normaElettrica   = NORMATIVE.CEI_EN_60204_1.codice;     // CEI EN 60204-1
+const normaIdraulica   = NORMATIVE.EN_ISO_4413_2011.codice;   // EN ISO 4413:2011
+const normaPneumatica  = NORMATIVE.EN_ISO_4414_2011.codice;   // EN ISO 4414:2011
 
 export const EXTRACTION_PROMPTS: Record<string, string> = {
 
     // ─── CE — DICHIARAZIONE DI CONFORMITÀ ────────────────────────────────────
     // Contiene: identificazione macchina, fabbricante, norme applicate, firma
     // Cross-check con: macchinario (marca, modello, numero_seriale, anno_produzione)
-    dichiarazione_ce: `Sei un esperto di conformità CE per macchinari industriali (Dir. 2006/42/CE).
+    dichiarazione_ce: `Sei un esperto di conformità CE per macchinari industriali (${normativaAttuale}).
 Analizza questa Dichiarazione CE di Conformità ed estrai le informazioni richieste.
-Per le norme armonizzate, cerca specificamente EN ISO 20430, ISO 12100, CEI EN 60204-1 e qualsiasi altra norma EN/ISO citata.
+Per le norme armonizzate, cerca specificamente ${normaIniezione}, ${normaRischi}, ${normaElettrica} e qualsiasi altra norma EN/ISO citata.
 Restituisci SOLO questo JSON (null se non trovato):
 {
-  "normativa_citata": "es. Dir. 2006/42/CE",
-  "norme_armonizzate": ["EN ISO 20430:2021", "ISO 12100:2010"],
+  "normativa_citata": "es. ${normativaAttuale}",
+  "norme_armonizzate": ["${normaIniezione}", "${normaRischi}"],
   "data_documento": "YYYY-MM-DD",
   "mandatario_ue": "ragione sociale del mandatario UE se presente",
   "fabbricante": "ragione sociale del fabbricante",
@@ -41,7 +48,7 @@ Analizza questo Manuale d'uso e restituisci SOLO questo JSON (null se non trovat
 
     // ─── CE — FASCICOLO TECNICO ───────────────────────────────────────────────
     // Documento padre che contiene analisi_rischi, schemi_elettrici, ecc.
-    fascicolo_tecnico: `Sei un esperto di documentazione tecnica CE per macchinari (Dir. 2006/42/CE).
+    fascicolo_tecnico: `Sei un esperto di documentazione tecnica CE per macchinari (${normativaAttuale}).
 Analizza questo Fascicolo Tecnico e restituisci SOLO questo JSON (null se non trovato):
 {
   "data_compilazione": "YYYY-MM-DD",
@@ -57,10 +64,10 @@ Analizza questo Fascicolo Tecnico e restituisci SOLO questo JSON (null se non tr
 }`,
 
     // ─── CE — ANALISI DEI RISCHI ──────────────────────────────────────────────
-    analisi_rischi: `Sei un esperto di sicurezza macchine (ISO 12100:2010, EN ISO 20430:2021).
+    analisi_rischi: `Sei un esperto di sicurezza macchine (${normaRischi}, ${normaIniezione}).
 Analizza questo documento di Analisi dei Rischi e restituisci SOLO questo JSON (null se non trovato):
 {
-  "metodologia": "ISO 12100:2010",
+  "metodologia": "${normaRischi}",
   "norme_armonizzate": ["lista norme citate"],
   "data_valutazione": "YYYY-MM-DD",
   "firmatario": "nome e qualifica",
@@ -70,10 +77,10 @@ Analizza questo documento di Analisi dei Rischi e restituisci SOLO questo JSON (
 }`,
 
     // ─── CE — SCHEMI ELETTRICI ────────────────────────────────────────────────
-    schemi_elettrici: `Sei un esperto di impiantistica elettrica industriale (CEI EN 60204-1).
+    schemi_elettrici: `Sei un esperto di impiantistica elettrica industriale (${normaElettrica}).
 Analizza questi Schemi Elettrici e restituisci SOLO questo JSON (null se non trovato):
 {
-  "standard_citato": "CEI EN 60204-1",
+  "standard_citato": "${normaElettrica}",
   "norme_armonizzate": ["lista norme citate"],
   "versione": "v1.0",
   "data_schemi": "YYYY-MM-DD",
@@ -86,7 +93,7 @@ Analizza questi Schemi Elettrici e restituisci SOLO questo JSON (null se non tro
     schemi_idraulici: `Sei un esperto di impiantistica oleodinamica per macchinari industriali.
 Analizza questi Schemi Idraulici e restituisci SOLO questo JSON (null se non trovato):
 {
-  "standard_citato": "es. ISO 4413",
+  "standard_citato": "${normaIdraulica}",
   "versione": "v1.0",
   "data_schemi": "YYYY-MM-DD",
   "pressione_massima_bar": null,
@@ -97,7 +104,7 @@ Analizza questi Schemi Idraulici e restituisci SOLO questo JSON (null se non tro
     schemi_pneumatici: `Sei un esperto di impiantistica pneumatica per macchinari industriali.
 Analizza questi Schemi Pneumatici e restituisci SOLO questo JSON (null se non trovato):
 {
-  "standard_citato": "es. ISO 4414",
+  "standard_citato": "${normaPneumatica}",
   "versione": "v1.0",
   "data_schemi": "YYYY-MM-DD",
   "nome_macchina": "nome della macchina se presente"

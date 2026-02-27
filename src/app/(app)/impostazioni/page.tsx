@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { Users, User, Building2, Activity } from "lucide-react";
+import { Users, User, Building2, Activity, BookMarked } from "lucide-react";
 import Link from "next/link";
 
 export default async function ImpostazioniPage() {
@@ -35,6 +35,14 @@ export default async function ImpostazioniPage() {
             icon: Activity,
             href: "/impostazioni/audit-log",
             color: "text-red-400 bg-red-500/10",
+            admin: true,
+        },
+        {
+            title: "Normative",
+            desc: "Registro normativo di riferimento: direttive UE, norme ISO/EN, codici HS. Verifica automatica EUR-Lex.",
+            icon: BookMarked,
+            href: "/impostazioni/normative",
+            color: "text-amber-400 bg-amber-500/10",
             admin: true,
         },
     ];

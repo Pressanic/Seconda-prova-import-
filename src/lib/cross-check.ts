@@ -2,9 +2,10 @@
  * Cross-check engine — logica server-side di validazione incrociata dei dati
  *
  * Contesto: presse ad iniezione plastica, importazione Cina → Italia/UE
- * Normativa: Dir. 2006/42/CE (attuale), Reg. UE 2023/1230 (dal 20/01/2027)
- * Norma specifica: EN ISO 20430:2021
+ * I riferimenti normativi sono centralizzati in src/lib/normative-config.ts
  */
+
+import { NORMATIVE, getNormativaVigenteMacchine } from "./normative-config";
 
 export interface CrossCheckAnomalia {
     codice: string;
@@ -186,7 +187,7 @@ export function runCrossChecks(params: {
             categoria: "ce",
             severita: "alta",
             messaggio: "Schemi elettrici non trovati (né nel fascicolo né come documento separato)",
-            raccomandazione: "Caricare gli schemi elettrici (CEI EN 60204-1) nel fascicolo tecnico o come documento separato.",
+            raccomandazione: `Caricare gli schemi elettrici (${NORMATIVE.CEI_EN_60204_1.codice}) nel fascicolo tecnico o come documento separato.`,
             penalita: 10,
         });
     }
@@ -241,8 +242,8 @@ export function runCrossChecks(params: {
                 codice: "CE_NORMA_20430_MANCANTE",
                 categoria: "ce",
                 severita: "alta",
-                messaggio: "EN ISO 20430:2021 non citata nella Dichiarazione CE",
-                raccomandazione: "Per presse ad iniezione plastica la norma armonizzata specifica è EN ISO 20430:2021. Verificare che il fabbricante l'abbia applicata e citata nella dichiarazione.",
+                messaggio: `${NORMATIVE.EN_ISO_20430_2020.codice} non citata nella Dichiarazione CE`,
+                raccomandazione: `Per presse ad iniezione plastica la norma armonizzata specifica è ${NORMATIVE.EN_ISO_20430_2020.codice}. Verificare che il fabbricante l'abbia applicata e citata nella dichiarazione. Fonte: ${NORMATIVE.EN_ISO_20430_2020.url_fonte}`,
                 penalita: 15,
             });
         }
@@ -277,7 +278,7 @@ export function runCrossChecks(params: {
                 categoria: "ce",
                 severita: "critica",
                 messaggio: "Macchina usata senza analisi dei rischi aggiornata",
-                raccomandazione: "Per macchinari usati è necessaria una nuova analisi dei rischi (ISO 12100:2010) redatta da un tecnico competente.",
+                raccomandazione: `Per macchinari usati è necessaria una nuova analisi dei rischi (${NORMATIVE.ISO_12100_2010.codice}) redatta da un tecnico competente.`,
                 penalita: 25,
             });
         }

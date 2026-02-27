@@ -71,7 +71,7 @@ const scenario1 = runCrossChecks({
         {
             tipo_documento: "dichiarazione_ce",
             stato_validazione: "valido",
-            norme_armonizzate: ["Dir. 2006/42/CE", "EN ISO 20430:2021", "ISO 12100:2010", "CEI EN 60204-1"],
+            norme_armonizzate: ["Dir. 2006/42/CE", "EN ISO 20430:2020", "ISO 12100:2010", "CEI EN 60204-1"],
             normativa_citata: "Dir. 2006/42/CE",
             data_documento: "2024-03-15",
             dati_estratti: {
@@ -234,7 +234,7 @@ const scenario3 = runCrossChecks({
         {
             tipo_documento: "dichiarazione_ce",
             stato_validazione: "valido",
-            norme_armonizzate: ["Dir. 2006/42/CE", "EN ISO 20430:2021", "ISO 12100:2010"],
+            norme_armonizzate: ["Dir. 2006/42/CE", "EN ISO 20430:2020", "ISO 12100:2010"],
             normativa_citata: "Dir. 2006/42/CE",
             dati_estratti: { numero_seriale: "NB-2024-100" },
         },
