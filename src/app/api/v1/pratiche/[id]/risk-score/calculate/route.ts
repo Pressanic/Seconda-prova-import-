@@ -67,15 +67,19 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
             valore_commerciale: c.valore_commerciale ? Number(c.valore_commerciale) : null,
             ha_marcatura_ce: c.ha_marcatura_ce ?? false,
         })),
-        documenti_ce: docsCE.map(d => ({
-            tipo_documento: d.tipo_documento,
-            stato_validazione: d.stato_validazione,
-            norme_armonizzate: (d.norme_armonizzate as string[]) ?? [],
-            normativa_citata: d.normativa_citata,
-            data_documento: d.data_documento,
-            componente_id: d.componente_id,
-            dati_estratti: undefined,
-        })),
+        documenti_ce: docsCE.map(d => {
+            const anomalie = (d.anomalie_rilevate as any[]) ?? [];
+            const datiExtra = anomalie.find((a: any) => a?.dati_extra)?.dati_extra;
+            return {
+                tipo_documento: d.tipo_documento,
+                stato_validazione: d.stato_validazione,
+                norme_armonizzate: (d.norme_armonizzate as string[]) ?? [],
+                normativa_citata: d.normativa_citata,
+                data_documento: d.data_documento,
+                componente_id: d.componente_id,
+                dati_estratti: datiExtra ?? undefined,
+            };
+        }),
         documenti_doganali: docsDoganali.map(d => ({
             tipo_documento: d.tipo_documento,
             stato_validazione: d.stato_validazione,

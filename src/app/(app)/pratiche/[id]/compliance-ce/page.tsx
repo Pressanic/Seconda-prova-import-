@@ -6,10 +6,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
     FileText, CheckCircle, XCircle, AlertTriangle, Circle,
-    Shield, ExternalLink, ChevronRight, Info
+    Shield, ExternalLink, Info
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import DocumentUploadModal from "@/components/forms/DocumentUploadModal";
+import DocumentPreviewButton from "@/components/ui/DocumentPreviewButton";
 
 // ─── Document types ──────────────────────────────────────────────────────────
 
@@ -28,8 +29,6 @@ function buildDocTypes(macchinario: {
     sistemi_pneumatici_ausiliari?: boolean | null;
     stato_macchina: string;
 }): DocType[] {
-    const isIdraulico = macchinario.tipo_azionamento === "idraulico" || macchinario.tipo_azionamento === "ibrido";
-    const isPneumatico = macchinario.sistemi_pneumatici_ausiliari === true;
     const isUsata = macchinario.stato_macchina === "usata";
 
     return [
@@ -43,50 +42,27 @@ function buildDocTypes(macchinario: {
         {
             tipo: "manuale_uso",
             label: "Manuale d'Uso in lingua italiana",
-            ref: "Dir. 2006/42/CE, Art. 10",
+            ref: "Dir. 2006/42/CE, Art. 10 — All. I § 1.7.4",
             required: true,
-            hint: "Obbligatorio in italiano per destinazione IT/UE",
+            hint: "Obbligatorio in italiano. Deve includere sezioni: installazione, uso normale, manutenzione",
         },
         {
             tipo: "fascicolo_tecnico",
-            label: "Fascicolo Tecnico",
+            label: isUsata ? "Fascicolo Tecnico (aggiornato per macchina usata)" : "Fascicolo Tecnico",
             ref: "Dir. 2006/42/CE, All. VII",
             required: true,
-            hint: "Documento contenitore — deve includere tutti i sotto-documenti seguenti",
-            children: [
-                {
-                    tipo: "analisi_rischi",
-                    label: isUsata ? "Analisi dei Rischi (aggiornata per macchina usata)" : "Analisi dei Rischi",
-                    ref: "ISO 12100:2010",
-                    required: true,
-                    hint: isUsata ? "Per macchina usata è necessaria una nuova valutazione dei rischi" : "Valutazione sistematica di tutti i rischi residui",
-                },
-                {
-                    tipo: "schemi_elettrici",
-                    label: "Schemi Elettrici",
-                    ref: "CEI EN 60204-1",
-                    required: true,
-                    hint: "Schemi del quadro elettrico e cablaggi",
-                },
-                ...(isIdraulico ? [{
-                    tipo: "schemi_idraulici",
-                    label: "Schemi Idraulici",
-                    ref: "EN ISO 4413",
-                    required: true,
-                    hint: "Obbligatori per azionamento idraulico/ibrido",
-                    conditional: true,
-                }] : []),
-                ...(isPneumatico ? [{
-                    tipo: "schemi_pneumatici",
-                    label: "Schemi Pneumatici",
-                    ref: "EN ISO 4414",
-                    required: false,
-                    hint: "Richiesti per sistemi pneumatici ausiliari",
-                    conditional: true,
-                }] : []),
-            ],
+            hint: isUsata
+                ? "Include analisi dei rischi aggiornata, schemi elettrici/idraulici, disegni costruttivi"
+                : "Include analisi dei rischi, schemi elettrici/idraulici, disegni costruttivi — caricamento unico",
         },
     ];
+}
+
+// Helper: extract dati_extra from anomalie_rilevate
+function getFTExtra(doc: any): Record<string, any> {
+    if (!doc) return {};
+    const anomalie = (doc.anomalie_rilevate as any[]) ?? [];
+    return anomalie.find((a: any) => a.dati_extra)?.dati_extra ?? {};
 }
 
 // ─── Score calc ───────────────────────────────────────────────────────────────
@@ -101,30 +77,38 @@ function calcCEScore(
     let score = 100;
     const penalty = (pts: number) => { score -= pts; };
 
-    function checkDocs(types: DocType[]) {
-        for (const dt of types) {
-            const doc = docsByTipo[dt.tipo];
-            if (!doc) {
-                penalty(dt.required ? 15 : 5);
-            } else if (doc.stato_validazione === "non_valido") {
-                penalty(dt.required ? 10 : 3);
-            }
-            if (dt.children) checkDocs(dt.children);
+    // Top-level doc presence / validity
+    for (const dt of docTypes) {
+        const doc = docsByTipo[dt.tipo];
+        if (!doc) {
+            penalty(dt.required ? 15 : 5);
+        } else if (doc.stato_validazione === "non_valido") {
+            penalty(dt.required ? 10 : 3);
         }
     }
-    checkDocs(docTypes);
 
     // EN ISO 20430 check (specific for injection presses)
     const dichCe = docsByTipo["dichiarazione_ce"];
     if (dichCe) {
         const norme: string[] = (dichCe.norme_armonizzate as string[]) ?? [];
-        const hasISO20430 = norme.some(n => n.includes("20430"));
-        if (!hasISO20430) penalty(15);
+        if (!norme.some(n => n.includes("20430"))) penalty(15);
     }
 
-    // Usata: analisi rischi extra weight
-    if (macchinario.stato_macchina === "usata" && !docsByTipo["analisi_rischi"]) {
-        penalty(10); // extra penalty on top of the 15 above
+    // Fascicolo Tecnico sub-sections (AR, SE)
+    const ftDoc = docsByTipo["fascicolo_tecnico"];
+    const ftExtra = getFTExtra(ftDoc);
+    // Legacy: also accept separate analisi_rischi / schemi_elettrici uploads
+    const hasAR = ftExtra.contiene_analisi_rischi === true || !!docsByTipo["analisi_rischi"];
+    const hasSE = ftExtra.contiene_schemi_elettrici === true || !!docsByTipo["schemi_elettrici"];
+    if (ftDoc && !hasAR) penalty(macchinario.stato_macchina === "usata" ? 20 : 15);
+    if (ftDoc && !hasSE) penalty(10);
+
+    // Manuale d'uso: check anomalie for CE-MAN-001 (no Italian)
+    const manualeDoc = docsByTipo["manuale_uso"];
+    if (manualeDoc) {
+        const manualeAnomalies = ((manualeDoc.anomalie_rilevate as any[]) ?? []).filter((a: any) => a.codice);
+        if (manualeAnomalies.some((a: any) => a.codice === "CE-MAN-001")) penalty(15);
+        if (manualeAnomalies.some((a: any) => a.codice === "CE-MAN-004")) penalty(10);
     }
 
     // Component CE docs
@@ -149,13 +133,12 @@ const STATO_CONFIG: Record<string, { icon: React.ElementType; color: string; lab
 // ─── Doc row component ────────────────────────────────────────────────────────
 
 function DocRow({
-    dt, doc, praticaId, macchinarioId, indent = false, componenteId,
+    dt, doc, praticaId, macchinarioId, componenteId,
 }: {
     dt: DocType;
     doc: any;
     praticaId: string;
     macchinarioId: string;
-    indent?: boolean;
     componenteId?: string;
 }) {
     const stato = doc?.stato_validazione ?? "da_verificare";
@@ -165,14 +148,13 @@ function DocRow({
     const missingISO20430 = dt.tipo === "dichiarazione_ce" && doc && !norme.some(n => n.includes("20430"));
 
     return (
-        <div className={`px-6 py-4 ${indent ? "pl-12 bg-slate-900/20" : ""}`}>
+        <div className="px-6 py-4">
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                    {indent && <ChevronRight className="w-3.5 h-3.5 text-slate-600 mt-1 shrink-0" />}
                     <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${color}`} />
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <p className={`text-sm font-medium text-white ${indent ? "text-xs" : ""}`}>{dt.label}</p>
+                            <p className="text-sm font-medium text-white">{dt.label}</p>
                             {dt.required && <span className="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">Obbligatorio</span>}
                             {dt.conditional && <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">Condizionale</span>}
                             <span className="text-[10px] text-slate-500">{dt.ref}</span>
@@ -190,10 +172,7 @@ function DocRow({
                                         {doc.uploaded_at && <> — {formatDate(doc.uploaded_at?.toString())}</>}
                                     </p>
                                     {doc.url_storage && (
-                                        <a href={doc.url_storage} target="_blank" rel="noopener noreferrer"
-                                            className="text-xs text-blue-400 hover:text-blue-300 underline shrink-0 transition">
-                                            Visualizza ↗
-                                        </a>
+                                        <DocumentPreviewButton url={doc.url_storage} nomeFile={doc.nome_file ?? ""} />
                                     )}
                                 </div>
 
@@ -217,6 +196,30 @@ function DocRow({
                                     </div>
                                 )}
 
+                                {/* Fascicolo Tecnico: sub-section status */}
+                                {dt.tipo === "fascicolo_tecnico" && (() => {
+                                    const extra = getFTExtra(doc);
+                                    const subsections = [
+                                        { key: "contiene_analisi_rischi", label: "Analisi Rischi", required: true },
+                                        { key: "contiene_schemi_elettrici", label: "Schemi Elettrici", required: true },
+                                        { key: "contiene_schemi_idraulici", label: "Schemi Idraulici", required: false },
+                                        { key: "contiene_schemi_pneumatici", label: "Schemi Pneumatici", required: false },
+                                    ];
+                                    return (
+                                        <div className="flex flex-wrap gap-1.5 mt-0.5">
+                                            {subsections.map(s => {
+                                                const present = extra[s.key] === true || (s.key === "contiene_analisi_rischi" && !!doc._hasLegacyAR) || (s.key === "contiene_schemi_elettrici" && !!doc._hasLegacySE);
+                                                if (!present && !s.required) return null;
+                                                return (
+                                                    <span key={s.key} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${present ? "bg-green-500/15 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                                                        {present ? "✓" : "✗"} {s.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+
                                 {anomalie.map((a: any, i: number) => (
                                     <div key={i} className="flex items-center gap-1.5 text-xs text-yellow-400">
                                         <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -239,6 +242,7 @@ function DocRow({
                         tipoDocumento={dt.tipo}
                         tipoLabel={dt.label}
                         existingId={doc?.id}
+                        existingDoc={doc ?? undefined}
                         componenteId={componenteId}
                     />
                 </div>
@@ -289,11 +293,7 @@ export default async function ComplianceCEPage({ params }: { params: Promise<{ i
     const docTypes = macchinario ? buildDocTypes(macchinario) : [];
     const ceScore = macchinario ? calcCEScore(docTypes, docsByTipo, macchinario, componentiCE, docsComponenti) : 0;
 
-    // Count present docs (flat)
-    function flatDocs(types: DocType[]): string[] {
-        return types.flatMap(t => [t.tipo, ...(t.children ? flatDocs(t.children) : [])]);
-    }
-    const allTypes = flatDocs(docTypes);
+    const allTypes = docTypes.map(t => t.tipo);
     const presentCount = allTypes.filter(t => docsByTipo[t]).length;
 
     return (
@@ -348,26 +348,13 @@ export default async function ComplianceCEPage({ params }: { params: Promise<{ i
                 {macchinario && (
                     <div className="divide-y divide-slate-700/40">
                         {docTypes.map(dt => (
-                            <div key={dt.tipo}>
-                                <DocRow
-                                    dt={dt}
-                                    doc={docsByTipo[dt.tipo]}
-                                    praticaId={id}
-                                    macchinarioId={macchinario.id}
-                                />
-                                {/* Children (fascicolo tecnico sub-docs) */}
-                                {dt.children && dt.children.map(child => (
-                                    <div key={child.tipo} className="border-t border-slate-700/20">
-                                        <DocRow
-                                            dt={child}
-                                            doc={docsByTipo[child.tipo]}
-                                            praticaId={id}
-                                            macchinarioId={macchinario.id}
-                                            indent={true}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                            <DocRow
+                                key={dt.tipo}
+                                dt={dt}
+                                doc={docsByTipo[dt.tipo]}
+                                praticaId={id}
+                                macchinarioId={macchinario.id}
+                            />
                         ))}
                     </div>
                 )}
@@ -403,10 +390,7 @@ export default async function ComplianceCEPage({ params }: { params: Promise<{ i
                                                     <div className="mt-1 flex items-center gap-3">
                                                         <p className="text-xs text-slate-400">{dichComp.nome_file}</p>
                                                         {dichComp.url_storage && (
-                                                            <a href={dichComp.url_storage} target="_blank" rel="noopener noreferrer"
-                                                                className="text-xs text-blue-400 hover:text-blue-300 underline transition">
-                                                                Visualizza ↗
-                                                            </a>
+                                                            <DocumentPreviewButton url={dichComp.url_storage} nomeFile={dichComp.nome_file ?? ""} />
                                                         )}
                                                     </div>
                                                 ) : (

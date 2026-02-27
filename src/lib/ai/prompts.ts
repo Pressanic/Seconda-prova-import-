@@ -18,9 +18,18 @@ export const EXTRACTION_PROMPTS: Record<string, string> = {
     dichiarazione_ce: `Sei un esperto di conformità CE per macchinari industriali (${normativaAttuale}).
 Analizza questa Dichiarazione CE di Conformità ed estrai le informazioni richieste.
 Per le norme armonizzate, cerca specificamente ${normaIniezione}, ${normaRischi}, ${normaElettrica} e qualsiasi altra norma EN/ISO citata.
+
+IMPORTANTE — normativa_valida: determina se la direttiva/regolamento principale citato è attualmente in vigore:
+- "Dir. 2006/42/CE" (o "2006/42/CE", "2006/42/EC") → normativa_valida: true (vigente fino al 19/01/2027)
+- "Reg. UE 2023/1230" (o "Reg. (UE) 2023/1230") → normativa_valida: false (applicabile solo dal 20/01/2027, non ancora oggi)
+- Direttive più vecchie come "Dir. 98/37/CE", "89/392/CEE" → normativa_valida: false (abrogate)
+- Se non è citata nessuna direttiva macchine → normativa_valida: false
+- Altre direttive ancora in vigore (es. 2014/30/UE, 2014/35/UE) → normativa_valida: true
+
 Restituisci SOLO questo JSON (null se non trovato):
 {
   "normativa_citata": "es. ${normativaAttuale}",
+  "normativa_valida": true,
   "norme_armonizzate": ["${normaIniezione}", "${normaRischi}"],
   "data_documento": "YYYY-MM-DD",
   "mandatario_ue": "ragione sociale del mandatario UE se presente",
@@ -35,33 +44,80 @@ Restituisci SOLO questo JSON (null se non trovato):
 }`,
 
     // ─── CE — MANUALE D'USO ───────────────────────────────────────────────────
-    manuale_uso: `Sei un esperto di documentazione tecnica per macchinari industriali.
-Analizza questo Manuale d'uso e restituisci SOLO questo JSON (null se non trovato):
+    // Dir. 2006/42/CE, Art. 10 + All. I § 1.7.4 — obbligatorio in italiano per mercato IT/UE
+    manuale_uso: `Sei un esperto di documentazione tecnica per macchinari industriali (${normativaAttuale}, All. I § 1.7.4).
+
+STEP 1 — VERIFICA TIPO DOCUMENTO:
+Stabilisci se il documento è effettivamente un Manuale d'Uso / Istruzioni per l'uso di un macchinario industriale.
+Non è un manuale d'uso se è: una dichiarazione CE, un fascicolo tecnico, una fattura, un certificato, ecc.
+
+STEP 2 — ESTRAZIONE E VALIDAZIONE:
+Restituisci SOLO questo JSON (null se non trovato):
 {
+  "tipo_documento_verificato": "manuale_uso",
+  "tipo_documento_rilevato": null,
   "lingua": "Italiano",
+  "lingue_presenti": ["Italiano"],
+  "lingua_italiana_presente": true,
   "versione": "v1.0",
   "data_revisione": "YYYY-MM-DD",
   "nome_macchina": "nome della macchina",
   "modello": "codice modello",
-  "numero_seriale": "numero di serie se presente"
-}`,
+  "ha_sezione_installazione": true,
+  "ha_sezione_uso_normale": true,
+  "ha_sezione_manutenzione": true,
+  "ha_sezione_guasti": false,
+  "ha_sezione_dismissione": false,
+  "anomalie": []
+}
+
+REGOLE:
+- Se il documento NON è un manuale d'uso: tipo_documento_verificato = "altro", tipo_documento_rilevato = tipo rilevato (es. "fascicolo tecnico"), aggiungi anomalia CE-DOC-000
+- Dir. 2006/42/CE impone che il manuale sia disponibile in italiano per il mercato italiano
+- Se lingua italiana NON presente: aggiungi { "codice": "CE-MAN-001", "messaggio": "Manuale non disponibile in italiano (lingue rilevate: [elenco])", "severity": "alta" }
+- Se manca sezione installazione: aggiungi { "codice": "CE-MAN-002", "messaggio": "Sezione installazione e messa in servizio mancante (All. I § 1.7.4.2)", "severity": "media" }
+- Se manca sezione uso normale: aggiungi { "codice": "CE-MAN-004", "messaggio": "Sezione uso normale mancante (All. I § 1.7.4.2)", "severity": "alta" }
+- Se manca sezione manutenzione: aggiungi { "codice": "CE-MAN-003", "messaggio": "Sezione manutenzione mancante (All. I § 1.7.4.2)", "severity": "media" }`,
 
     // ─── CE — FASCICOLO TECNICO ───────────────────────────────────────────────
-    // Documento padre che contiene analisi_rischi, schemi_elettrici, ecc.
-    fascicolo_tecnico: `Sei un esperto di documentazione tecnica CE per macchinari (${normativaAttuale}).
-Analizza questo Fascicolo Tecnico e restituisci SOLO questo JSON (null se non trovato):
+    // Dir. 2006/42/CE All. VII — documento contenitore che include AR, SE, disegni, ecc.
+    fascicolo_tecnico: `Sei un esperto di certificazione CE per macchinari industriali (${normativaAttuale}, All. VII).
+
+STEP 1 — VERIFICA TIPO DOCUMENTO:
+Stabilisci se il documento è effettivamente un Fascicolo Tecnico di Costruzione (technical construction file).
+Non è un fascicolo tecnico se è: un manuale d'uso, una dichiarazione CE, una fattura, un certificato, ecc.
+
+STEP 2 — ESTRAZIONE E VALIDAZIONE:
+Restituisci SOLO questo JSON (null se non trovato):
 {
+  "tipo_documento_verificato": "fascicolo_tecnico",
+  "tipo_documento_rilevato": null,
   "data_compilazione": "YYYY-MM-DD",
   "responsabile_compilazione": "nome e qualifica",
   "nome_macchina": "nome della macchina",
   "modello": "codice modello",
   "numero_seriale": "numero di serie se presente",
-  "norme_armonizzate": ["lista norme citate nel fascicolo"],
+  "norme_armonizzate": ["${normaIniezione}", "${normaRischi}", "${normaElettrica}"],
   "contiene_analisi_rischi": true,
+  "ar_metodologia": "${normaRischi}",
+  "ar_data": "YYYY-MM-DD",
+  "ar_firmatario": "nome firmatario",
   "contiene_schemi_elettrici": true,
+  "schemi_standard": "${normaElettrica}",
+  "schemi_versione": null,
+  "schemi_data": "YYYY-MM-DD",
   "contiene_schemi_idraulici": false,
-  "contiene_schemi_pneumatici": false
-}`,
+  "contiene_schemi_pneumatici": false,
+  "contiene_disegni_costruttivi": true,
+  "anomalie": []
+}
+
+REGOLE:
+- Se il documento NON è un fascicolo tecnico: tipo_documento_verificato = "altro", tipo_documento_rilevato = tipo rilevato, aggiungi anomalia CE-DOC-000
+- Se analisi rischi NON presente: aggiungi { "codice": "CE-FT-001", "messaggio": "Analisi dei rischi assente o non conforme a ${normaRischi}", "severity": "alta" }
+- Se schemi elettrici NON presenti: aggiungi { "codice": "CE-FT-002", "messaggio": "Schemi elettrici assenti o non conformi a ${normaElettrica}", "severity": "alta" }
+- Se norme_armonizzate NON include ${normaIniezione}: aggiungi { "codice": "CE-FT-003", "messaggio": "Norma specifica ${normaIniezione} non citata nel fascicolo", "severity": "alta" }
+- Se responsabile_compilazione non identificato: aggiungi { "codice": "CE-FT-004", "messaggio": "Responsabile compilazione non identificabile", "severity": "bassa" }`,
 
     // ─── CE — ANALISI DEI RISCHI ──────────────────────────────────────────────
     analisi_rischi: `Sei un esperto di sicurezza macchine (${normaRischi}, ${normaIniezione}).

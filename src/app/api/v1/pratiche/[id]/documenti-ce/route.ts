@@ -35,20 +35,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!pratica) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await req.json();
-    const [doc] = await db.insert(documenti_ce).values({
-        macchinario_id: body.macchinario_id,
-        tipo_documento: body.tipo_documento,
-        nome_file: body.nome_file,
-        url_storage: body.url_storage,
-        stato_validazione: body.stato_validazione ?? "da_verificare",
-        anomalie_rilevate: body.anomalie_rilevate ?? [],
-        normativa_citata: body.normativa_citata,
-        normativa_valida: body.normativa_valida,
-        data_documento: body.data_documento,
-        firmato: body.firmato ?? false,
-        mandatario_ue: body.mandatario_ue,
-        uploaded_by: user_id,
-    }).returning();
+
+    // Sanitize date: accept only YYYY-MM-DD or null
+    const safeDate = (v: any) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+    let doc: any;
+    try {
+        [doc] = await db.insert(documenti_ce).values({
+            macchinario_id: body.macchinario_id,
+            tipo_documento: body.tipo_documento,
+            nome_file: body.nome_file,
+            url_storage: body.url_storage,
+            stato_validazione: body.stato_validazione ?? "da_verificare",
+            anomalie_rilevate: body.anomalie_rilevate ?? [],
+            normativa_citata: body.normativa_citata,
+            normativa_valida: body.normativa_valida,
+            data_documento: safeDate(body.data_documento),
+            firmato: body.firmato ?? false,
+            mandatario_ue: body.mandatario_ue,
+            norme_armonizzate: body.norme_armonizzate ?? null,
+            componente_id: body.componente_id ?? null,
+            uploaded_by: user_id,
+        }).returning();
+    } catch (err: any) {
+        console.error("[documenti-ce POST] DB error:", err);
+        return NextResponse.json({ error: err.message ?? "Errore salvataggio documento CE" }, { status: 500 });
+    }
 
     if (doc) {
         await db.insert(audit_log).values({

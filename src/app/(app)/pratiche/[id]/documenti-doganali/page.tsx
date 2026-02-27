@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { CheckCircle, Circle, XCircle, Minus, Package, FileText, Ship, AlertTriangle, Info } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import DocumentUploadModal from "@/components/forms/DocumentUploadModal";
+import DocumentPreviewButton from "@/components/ui/DocumentPreviewButton";
 
 // ─── Document types ───────────────────────────────────────────────────────────
 
@@ -264,10 +265,7 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
                                                             {(doc as any).peso_doc_kg && <span className="ml-2">{Number((doc as any).peso_doc_kg).toLocaleString()} kg</span>}
                                                         </span>
                                                         {doc.url_storage && (
-                                                            <a href={doc.url_storage} target="_blank" rel="noopener noreferrer"
-                                                                className="text-xs text-blue-400 hover:text-blue-300 underline shrink-0 transition">
-                                                                Visualizza ↗
-                                                            </a>
+                                                            <DocumentPreviewButton url={doc.url_storage} nomeFile={doc.nome_file ?? ""} />
                                                         )}
                                                     </div>
                                                     {doc.codice_hs_nel_doc && (
@@ -285,7 +283,7 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
                                             )}
                                         </div>
                                     </div>
-                                    <DocumentUploadModal category="doganale" praticaId={id} tipoDocumento={tipo} tipoLabel={label} existingId={doc?.id} />
+                                    <DocumentUploadModal category="doganale" praticaId={id} tipoDocumento={tipo} tipoLabel={label} existingId={doc?.id} existingDoc={doc ?? undefined} />
                                 </div>
                             </div>
                         );

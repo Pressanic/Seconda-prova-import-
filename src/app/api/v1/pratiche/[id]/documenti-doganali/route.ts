@@ -43,6 +43,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         peso_doc_kg: body.peso_doc_kg?.toString(),
         valore_commerciale: body.valore_commerciale?.toString(),
         valuta: body.valuta ?? "USD",
+        incoterms_doc: body.incoterms_doc ?? null,
+        numero_colli_doc: body.numero_colli_doc ?? null,
         uploaded_by: user_id,
     }).returning();
 

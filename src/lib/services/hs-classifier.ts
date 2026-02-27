@@ -22,9 +22,9 @@ export interface HSResult {
 const RULES: HSRule[] = [
     {
         patterns: ["pressa", "iniezione", "plastica", "materie plastiche"],
-        hs_code: "847780",
-        taric_code: "8477800000",
-        descrizione: "Macchine per lavorazione gomma/plastica — presse a iniezione",
+        hs_code: "847710",
+        taric_code: "8477100000",
+        descrizione: "Macchine per stampaggio a iniezione per lavorazione gomma/materie plastiche",
         confidence: 95,
         dazio_pct: 2.2,
         iva_pct: 22,
