@@ -67,6 +67,13 @@ export interface DocumentoCEInput {
         tensione_v?: number;
         potenza_kw?: number;
     };
+    // anomalie AI già presenti nel documento (propagate nel risk score)
+    anomalie_rilevate?: Array<{
+        codice?: string;
+        messaggio?: string;
+        severita?: string;
+        raccomandazione?: string;
+    }>;
 }
 
 export interface DocumentoDoganaleInput {
@@ -426,6 +433,26 @@ export function runCrossChecks(params: {
                 raccomandazione: `Ogni componente deve essere elencato con peso e colli nella packing list.`,
                 penalita: 5,
             });
+        }
+    }
+
+    // ─── Propagate anomalie AI già presenti nei documenti CE ──────────────────
+    // Evita double-counting: salta se il codice è già presente nel cross-check
+    const codiceCrossCheck = new Set(anomalie.map(a => a.codice));
+    for (const doc of documenti_ce) {
+        for (const a of doc.anomalie_rilevate ?? []) {
+            if (!a.codice || codiceCrossCheck.has(a.codice)) continue;
+            const sev = a.severita ?? "media";
+            if (sev !== "alta" && sev !== "critica") continue;
+            anomalie.push({
+                codice: a.codice,
+                categoria: "ce",
+                severita: sev as "alta" | "critica",
+                messaggio: a.messaggio ?? `Anomalia ${a.codice} nel documento ${doc.tipo_documento}`,
+                raccomandazione: a.raccomandazione ?? "Verificare e correggere il problema nel documento CE.",
+                penalita: sev === "critica" ? 20 : 10,
+            });
+            codiceCrossCheck.add(a.codice);
         }
     }
 

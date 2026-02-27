@@ -68,8 +68,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
             ha_marcatura_ce: c.ha_marcatura_ce ?? false,
         })),
         documenti_ce: docsCE.map(d => {
-            const anomalie = (d.anomalie_rilevate as any[]) ?? [];
-            const datiExtra = anomalie.find((a: any) => a?.dati_extra)?.dati_extra;
+            const anomalieRaw = (d.anomalie_rilevate as any[]) ?? [];
+            const datiExtra = anomalieRaw.find((a: any) => a?.dati_extra)?.dati_extra;
+            const anomalieReali = anomalieRaw.filter((a: any) => !a?.dati_extra && a?.codice);
             return {
                 tipo_documento: d.tipo_documento,
                 stato_validazione: d.stato_validazione,
@@ -78,6 +79,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
                 data_documento: d.data_documento,
                 componente_id: d.componente_id,
                 dati_estratti: datiExtra ?? undefined,
+                anomalie_rilevate: anomalieReali,
             };
         }),
         documenti_doganali: docsDoganali.map(d => ({

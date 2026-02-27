@@ -5,7 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
-import { ShieldCheck, Truck, AlertTriangle, CheckCircle, Circle, Package2, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Truck, AlertTriangle, CheckCircle, Circle, Package2, CheckCircle2, ListChecks, XCircle, TriangleAlert } from "lucide-react";
 import RiskScoreBadge from "@/components/ui/RiskScoreBadge";
 import StatusBadge from "@/components/ui/StatusBadge";
 import PraticaDoganaleForm from "@/components/forms/PraticaDoganaleForm";
@@ -37,6 +37,41 @@ export default async function PraticaOverviewPage({ params }: { params: Promise<
     const presentDoganali = docsDoganali.map(d => d.tipo_documento);
     const score = riskScore ? Number(riskScore.score_globale) : null;
     const level = riskScore?.livello_rischio ?? "da_verificare";
+
+    // ─── Prossimi Passi ──────────────────────────────────────────────────────
+    type Passo = { testo: string; href: string; severita: "critica" | "alta" | "media" };
+    const passi: Passo[] = [];
+
+    if (!macchinario) {
+        passi.push({ testo: "Macchinario non registrato", href: `/pratiche/${id}/macchinario`, severita: "critica" });
+    } else {
+        if (!macchinario.numero_seriale) passi.push({ testo: "Numero seriale macchinario mancante", href: `/pratiche/${id}/macchinario`, severita: "alta" });
+        if (!macchinario.peso_lordo_kg) passi.push({ testo: "Peso lordo macchinario mancante (cross-check doganale)", href: `/pratiche/${id}/macchinario`, severita: "alta" });
+    }
+    if (!pratica.eori_importatore) passi.push({ testo: "EORI importatore non inserito", href: `/pratiche/${id}`, severita: "critica" });
+    if (!pratica.incoterms) passi.push({ testo: "Incoterms non inseriti", href: `/pratiche/${id}`, severita: "alta" });
+
+    for (const tipo of DOCS_CE_REQUIRED) {
+        if (!presentCE.includes(tipo)) passi.push({ testo: `${DOC_LABEL[tipo]} mancante`, href: `/pratiche/${id}/compliance-ce`, severita: tipo === "dichiarazione_ce" ? "critica" : "alta" });
+    }
+    for (const tipo of DOCS_DOG_REQUIRED) {
+        if (!presentDoganali.includes(tipo)) passi.push({ testo: `${DOC_LABEL[tipo]} mancante`, href: `/pratiche/${id}/documenti-doganali`, severita: "critica" });
+    }
+
+    // Aggiungi anomalie dal risk score (esclude quelle già mostrate sopra)
+    const SKIP_CODES_PASSI = new Set(["PRATICA_EORI_MANCANTE","PRATICA_INCOTERMS_MANCANTI","MACCH_PESO_MANCANTE","MACCH_SERIALE_MANCANTE","CE_DOC_MANCANTE_DICHIARAZIONE_CE","CE_DOC_MANCANTE_MANUALE_USO","CE_DOC_MANCANTE_FASCICOLO_TECNICO","DOG_DOC_MANCANTE_BILL_OF_LADING","DOG_DOC_MANCANTE_FATTURA_COMMERCIALE","DOG_DOC_MANCANTE_PACKING_LIST"]);
+    const anomalieRS = (riskScore?.dettaglio_penalita as any[]) ?? [];
+    for (const a of anomalieRS) {
+        if (!a.codice || SKIP_CODES_PASSI.has(a.codice)) continue;
+        if (a.severita !== "critica" && a.severita !== "alta" && a.severita !== "media") continue;
+        const href = a.categoria === "ce" ? `/pratiche/${id}/compliance-ce`
+                   : a.categoria === "doganale" ? `/pratiche/${id}/documenti-doganali`
+                   : `/pratiche/${id}/risk-score`;
+        passi.push({ testo: a.messaggio ?? a.codice, href, severita: a.severita });
+    }
+
+    const sevOrd = { critica: 0, alta: 1, media: 2 } as const;
+    passi.sort((a, b) => sevOrd[a.severita] - sevOrd[b.severita]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -261,6 +296,41 @@ export default async function PraticaOverviewPage({ params }: { params: Promise<
                                 className="bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 rounded-lg transition">
                                 Calcola ora
                             </Link>
+                        </div>
+                    )}
+                </div>
+
+                {/* Prossimi Passi */}
+                <div className="glass-card p-5">
+                    <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <ListChecks className="w-4 h-4 text-blue-400" /> Prossimi Passi
+                    </h2>
+                    {passi.length === 0 ? (
+                        <div className="flex items-center gap-2 text-sm text-green-400">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Nessuna azione richiesta</span>
+                        </div>
+                    ) : (
+                        <div className="space-y-1.5">
+                            {passi.slice(0, 7).map((passo, i) => (
+                                <Link key={i} href={passo.href}
+                                    className={`flex items-start gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-700/40 transition group border-l-2 ${
+                                        passo.severita === "critica" ? "border-red-500" :
+                                        passo.severita === "alta" ? "border-orange-500" : "border-yellow-500"
+                                    }`}>
+                                    {passo.severita === "critica"
+                                        ? <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                                        : passo.severita === "alta"
+                                            ? <TriangleAlert className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+                                            : <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" />}
+                                    <span className="text-xs text-slate-300 group-hover:text-white transition leading-relaxed">{passo.testo}</span>
+                                </Link>
+                            ))}
+                            {passi.length > 7 && (
+                                <Link href={`/pratiche/${id}/risk-score`} className="block text-xs text-blue-400 hover:text-blue-300 px-2.5 mt-1">
+                                    + altri {passi.length - 7} → dettaglio completo
+                                </Link>
+                            )}
                         </div>
                     )}
                 </div>
