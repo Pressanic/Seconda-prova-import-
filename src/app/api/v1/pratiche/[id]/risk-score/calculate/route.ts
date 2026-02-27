@@ -7,7 +7,50 @@ import {
     documenti_ce, documenti_doganali, audit_log,
 } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { runCrossChecks } from "@/lib/cross-check";
+import { runCrossChecks, type CrossCheckAnomalia } from "@/lib/cross-check";
+
+// ─── Azioni richieste ─────────────────────────────────────────────────────────
+
+interface AzioneRichiesta {
+    priorita: "critica" | "importante" | "consigliata";
+    area: string;
+    titolo: string;
+    descrizione: string;
+    link: string;
+    codice_anomalia: string;
+}
+
+function getAzioneLink(codice: string, praticaId: string): string {
+    if (codice.startsWith("CE_") || codice.startsWith("CE-")) return `/pratiche/${praticaId}/compliance-ce`;
+    if (codice.startsWith("MACCH_")) return `/pratiche/${praticaId}/macchinario`;
+    if (codice.startsWith("PRATICA_")) return `/pratiche/${praticaId}`;
+    return `/pratiche/${praticaId}/documenti-doganali`;
+}
+
+function getAzioneArea(a: CrossCheckAnomalia): string {
+    if (a.codice.startsWith("MACCH_")) return "macchinario";
+    if (a.codice.startsWith("PRATICA_")) return "pratica";
+    if (a.categoria === "ce") return "ce";
+    if (a.categoria === "doganale") return "doganale";
+    // coerenza: area da codice prefix
+    if (a.codice.startsWith("CE_")) return "ce";
+    return "doganale";
+}
+
+function buildAzioni(anomalie: CrossCheckAnomalia[], praticaId: string): AzioneRichiesta[] {
+    const ord = { critica: 0, alta: 1, media: 2, bassa: 3 } as const;
+    return anomalie
+        .filter(a => a.severita !== "bassa")
+        .sort((a, b) => ord[a.severita] - ord[b.severita])
+        .map(a => ({
+            priorita: a.severita === "critica" ? "critica" : a.severita === "alta" ? "importante" : "consigliata",
+            area: getAzioneArea(a),
+            titolo: a.messaggio,
+            descrizione: a.raccomandazione,
+            link: getAzioneLink(a.codice, praticaId),
+            codice_anomalia: a.codice,
+        }));
+}
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
@@ -126,6 +169,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         livello_rischio,
         dettaglio_penalita: crossCheckResult.anomalie,
         raccomandazioni: crossCheckResult.anomalie.map(a => a.raccomandazione),
+        azioni_richieste: buildAzioni(crossCheckResult.anomalie, id),
         calcolato_by: user_id,
     }).returning();
 

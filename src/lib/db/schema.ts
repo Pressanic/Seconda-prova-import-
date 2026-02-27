@@ -256,6 +256,7 @@ export const risk_scores = pgTable("risk_scores", {
     livello_rischio: varchar("livello_rischio", { length: 20 }).notNull(), // basso | medio | alto | critico
     dettaglio_penalita: jsonb("dettaglio_penalita").notNull(),
     raccomandazioni: jsonb("raccomandazioni").default([]),
+    azioni_richieste: jsonb("azioni_richieste").default([]),
     calcolato_at: timestamp("calcolato_at", { withTimezone: true }).defaultNow(),
     calcolato_by: uuid("calcolato_by").references(() => users.id),
 });
