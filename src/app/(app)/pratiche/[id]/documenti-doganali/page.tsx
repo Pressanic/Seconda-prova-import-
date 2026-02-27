@@ -1,19 +1,38 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pratiche, documenti_doganali, macchinari } from "@/lib/db/schema";
+import { pratiche, documenti_doganali, macchinari, componenti_aggiuntivi } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { CheckCircle, Circle, XCircle, Minus, Package, FileText, Ship } from "lucide-react";
+import { CheckCircle, Circle, XCircle, Minus, Package, FileText, Ship, AlertTriangle, Info } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import DocumentUploadModal from "@/components/forms/DocumentUploadModal";
 
+// ─── Document types ───────────────────────────────────────────────────────────
+
 const DOC_TYPES = [
-    { tipo: "bill_of_lading", label: "Bill of Lading (OBL)", required: true, icon: Ship },
-    { tipo: "fattura_commerciale", label: "Fattura Commerciale", required: true, icon: FileText },
-    { tipo: "packing_list", label: "Packing List", required: true, icon: Package },
-    { tipo: "certificato_origine", label: "Certificato di Origine", required: false, icon: FileText },
-    { tipo: "insurance_certificate", label: "Insurance Certificate", required: false, icon: FileText },
+    {
+        tipo: "bill_of_lading", label: "Bill of Lading (OBL)", required: true, icon: Ship,
+        hint: "Original Bill of Lading — documento di titolo per il rilascio della merce",
+    },
+    {
+        tipo: "fattura_commerciale", label: "Fattura Commerciale", required: true, icon: FileText,
+        hint: "Con valore CIF o FOB, descrizione merce, codice HS e dati importatore/esportatore",
+    },
+    {
+        tipo: "packing_list", label: "Packing List", required: true, icon: Package,
+        hint: "Dettaglio colli, pesi lordo/netto — deve coincidere con BL",
+    },
+    {
+        tipo: "certificato_origine", label: "Certificato di Origine CCPIT", required: false, icon: FileText,
+        hint: "Per importazione dalla Cina: certificato CCPIT (Camera di Commercio Cinese). NON EUR.1 (riservato ad accordi preferenziali UE).",
+    },
+    {
+        tipo: "insurance_certificate", label: "Insurance Certificate", required: false, icon: FileText,
+        hint: "Obbligatorio se incoterms = CIF — copre il trasporto marittimo",
+    },
 ];
+
+// ─── Cross-check helpers ──────────────────────────────────────────────────────
 
 type CheckResult = { stato: "ok" | "ko" | "nd"; messaggio: string; dettaglio?: string };
 
@@ -21,56 +40,79 @@ function checkHSCoerenza(docs: Record<string, any>, macchinario: any): CheckResu
     const bl = docs["bill_of_lading"];
     const fattura = docs["fattura_commerciale"];
     const hsSelezionato = macchinario?.codice_taric_selezionato;
-
-    const codici = [
-        bl?.codice_hs_nel_doc,
-        fattura?.codice_hs_nel_doc,
-    ].filter(Boolean);
-
-    if (codici.length === 0) return { stato: "nd", messaggio: "Nessun codice HS nei documenti" };
-
+    const codici = [bl?.codice_hs_nel_doc, fattura?.codice_hs_nel_doc].filter(Boolean);
+    if (codici.length === 0) return { stato: "nd", messaggio: "Nessun codice HS nei documenti caricati" };
     const prefix6 = (c: string) => c.replace(/\./g, "").slice(0, 6);
     const tutti = hsSelezionato ? [...codici, hsSelezionato] : codici;
     const normalizzati = tutti.map(prefix6);
     const coerenti = normalizzati.every(c => c === normalizzati[0]);
-
     if (coerenti) return { stato: "ok", messaggio: `Codice HS coerente: ${normalizzati[0]}` };
     return { stato: "ko", messaggio: "Codici HS non coerenti tra i documenti", dettaglio: normalizzati.join(" vs ") };
 }
 
-function checkPesiCoerenza(docs: Record<string, any>): CheckResult {
+function checkPesiCoerenza(docs: Record<string, any>, macchinario: any, compTotKg: number): CheckResult {
     const bl = docs["bill_of_lading"];
     const pl = docs["packing_list"];
+    const dichiaratoKg = macchinario?.peso_lordo_kg ? Number(macchinario.peso_lordo_kg) + compTotKg : null;
 
-    if (!bl?.peso_doc_kg || !pl?.peso_doc_kg) return { stato: "nd", messaggio: "Peso non disponibile in tutti i documenti" };
+    if (!bl?.peso_doc_kg && !pl?.peso_doc_kg) return { stato: "nd", messaggio: "Peso non disponibile nei documenti" };
 
-    const pesoBL = Number(bl.peso_doc_kg);
-    const pesoPL = Number(pl.peso_doc_kg);
-    const diff = Math.abs(pesoBL - pesoPL) / Math.max(pesoBL, pesoPL);
+    const pesoBL = bl?.peso_doc_kg ? Number(bl.peso_doc_kg) : null;
+    const pesoPL = pl?.peso_doc_kg ? Number(pl.peso_doc_kg) : null;
+    const issues: string[] = [];
 
-    if (diff <= 0.05) return { stato: "ok", messaggio: `Pesi coerenti (BL: ${pesoBL} kg, PL: ${pesoPL} kg)` };
-    return { stato: "ko", messaggio: `Discrepanza pesi superiore al 5%`, dettaglio: `BL: ${pesoBL} kg vs PL: ${pesoPL} kg (diff: ${(diff * 100).toFixed(1)}%)` };
+    if (pesoBL && pesoPL) {
+        const diff = Math.abs(pesoBL - pesoPL) / Math.max(pesoBL, pesoPL);
+        if (diff > 0.05) issues.push(`BL (${pesoBL} kg) vs PL (${pesoPL} kg): scostamento ${(diff * 100).toFixed(1)}%`);
+    }
+
+    if (dichiaratoKg && pesoBL) {
+        const diff = Math.abs(pesoBL - dichiaratoKg) / Math.max(pesoBL, dichiaratoKg);
+        if (diff > 0.05) issues.push(`BL (${pesoBL} kg) vs dichiarato (${dichiaratoKg.toFixed(0)} kg): scostamento ${(diff * 100).toFixed(1)}%`);
+    }
+
+    if (issues.length > 0) return { stato: "ko", messaggio: "Discrepanza pesi superiore al 5%", dettaglio: issues.join(" | ") };
+    const vals = [pesoBL, pesoPL, dichiaratoKg].filter(Boolean);
+    return { stato: "ok", messaggio: `Pesi coerenti: ${vals.join(" ≈ ")} kg` };
+}
+
+function checkIncotermsCoerenza(pratica: any, docs: Record<string, any>): CheckResult {
+    const incotermsAtteso = pratica.incoterms;
+    if (!incotermsAtteso) return { stato: "nd", messaggio: "Incoterms non impostati sulla pratica" };
+    const bl = docs["bill_of_lading"];
+    const fattura = docs["fattura_commerciale"];
+    const blInc = (bl as any)?.incoterms_doc;
+    const fatInc = (fattura as any)?.incoterms_doc;
+    const discrepanze: string[] = [];
+    if (blInc && blInc !== incotermsAtteso) discrepanze.push(`BL: ${blInc}`);
+    if (fatInc && fatInc !== incotermsAtteso) discrepanze.push(`Fattura: ${fatInc}`);
+    if (discrepanze.length > 0) return {
+        stato: "ko",
+        messaggio: `Incoterms pratica (${incotermsAtteso}) diversi dai documenti`,
+        dettaglio: discrepanze.join(", "),
+    };
+    return { stato: "ok", messaggio: `Incoterms coerenti: ${incotermsAtteso}` };
+}
+
+function checkInsurance(pratica: any, docs: Record<string, any>): CheckResult {
+    if (pratica.incoterms !== "CIF") return { stato: "ok", messaggio: "Insurance non obbligatoria (non CIF)" };
+    const ins = docs["insurance_certificate"];
+    if (!ins) return { stato: "ko", messaggio: "Insurance certificate obbligatoria con CIF ma non caricata" };
+    return { stato: "ok", messaggio: "Insurance certificate presente — conforme a CIF" };
 }
 
 function checkFatturaCompleta(docs: Record<string, any>): CheckResult {
     const fattura = docs["fattura_commerciale"];
     if (!fattura) return { stato: "nd", messaggio: "Fattura commerciale non caricata" };
-
     const mancanti: string[] = [];
     if (!fattura.valore_commerciale) mancanti.push("valore commerciale");
     if (!fattura.valuta) mancanti.push("valuta");
     if (!fattura.codice_hs_nel_doc) mancanti.push("codice HS");
-
-    if (mancanti.length === 0) return { stato: "ok", messaggio: `Fattura completa — ${fattura.valore_commerciale} ${fattura.valuta}` };
+    if (mancanti.length === 0) return { stato: "ok", messaggio: `Fattura completa — ${fattura.valore_commerciale} ${fattura.valuta ?? ""}` };
     return { stato: "ko", messaggio: "Dati mancanti in fattura", dettaglio: `Mancanti: ${mancanti.join(", ")}` };
 }
 
-function checkDescrizionePresente(docs: Record<string, any>): CheckResult {
-    const docsConDescrizione = Object.values(docs).filter((d: any) => d?.descrizione_merce_doc);
-    if (docsConDescrizione.length === 0) return { stato: "nd", messaggio: "Nessuna descrizione merce nei documenti" };
-    const desc = (docsConDescrizione[0] as any).descrizione_merce_doc;
-    return { stato: "ok", messaggio: "Descrizione merce presente", dettaglio: desc };
-}
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DocumentiDoganaliPage({ params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
@@ -83,18 +125,24 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
 
     const docs = await db.select().from(documenti_doganali).where(eq(documenti_doganali.pratica_id, id));
     const docsByTipo = Object.fromEntries(docs.map(d => [d.tipo_documento, d]));
+
     const [macchinario] = await db.select().from(macchinari).where(eq(macchinari.pratica_id, id)).limit(1);
+    const componenti = macchinario
+        ? await db.select().from(componenti_aggiuntivi).where(eq(componenti_aggiuntivi.macchinario_id, macchinario.id))
+        : [];
+
+    const compTotKg = componenti.reduce((sum, c) => sum + (c.peso_kg ? Number(c.peso_kg) : 0), 0);
 
     const required = ["bill_of_lading", "fattura_commerciale", "packing_list"];
     const present = required.filter(t => docsByTipo[t]);
     const dgScore = Math.max(0, 100 - (required.length - present.length) * 25);
 
-    // Real cross-checks
     const checks: { id: string; label: string; result: CheckResult }[] = [
         { id: "CHECK 1", label: "Codice HS coerente tra BL, Fattura e Sistema", result: checkHSCoerenza(docsByTipo, macchinario) },
-        { id: "CHECK 2", label: "Descrizione merce presente nei documenti", result: checkDescrizionePresente(docsByTipo) },
-        { id: "CHECK 3", label: "Pesi coerenti tra BL e Packing List (±5%)", result: checkPesiCoerenza(docsByTipo) },
-        { id: "CHECK 4", label: "Dati obbligatori fattura: valore, valuta, codice HS", result: checkFatturaCompleta(docsByTipo) },
+        { id: "CHECK 2", label: "Pesi coerenti BL / Packing List / Macchinario (±5%)", result: checkPesiCoerenza(docsByTipo, macchinario, compTotKg) },
+        { id: "CHECK 3", label: "Incoterms coerenti tra Pratica e Documenti", result: checkIncotermsCoerenza(pratica, docsByTipo) },
+        { id: "CHECK 4", label: "Insurance certificate (obbligatoria con CIF)", result: checkInsurance(pratica, docsByTipo) },
+        { id: "CHECK 5", label: "Dati obbligatori in fattura: valore, valuta, codice HS", result: checkFatturaCompleta(docsByTipo) },
     ];
 
     const checkIcon = (stato: CheckResult["stato"]) => {
@@ -105,11 +153,13 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
 
     return (
         <div className="space-y-5">
-            {/* Score */}
+            {/* Score summary */}
             <div className="grid grid-cols-3 gap-4">
                 <div className="glass-card p-4 border border-slate-700">
                     <p className="text-xs text-slate-500 uppercase tracking-wide">Score Doganale</p>
-                    <p className={`text-3xl font-bold mt-1 ${dgScore >= 80 ? "text-green-400" : dgScore >= 60 ? "text-yellow-400" : "text-red-400"}`}>{dgScore}/100</p>
+                    <p className={`text-3xl font-bold mt-1 ${dgScore >= 80 ? "text-green-400" : dgScore >= 60 ? "text-yellow-400" : "text-red-400"}`}>
+                        {dgScore}/100
+                    </p>
                 </div>
                 <div className="glass-card p-4">
                     <p className="text-xs text-slate-500 uppercase tracking-wide">Obbligatori</p>
@@ -121,47 +171,150 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
                 </div>
             </div>
 
+            {/* Pratica context bar */}
+            <div className="glass-card p-4 space-y-2">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Dati Pratica</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wide">EORI</p>
+                        {pratica.eori_importatore ? (
+                            <p className="text-sm font-mono text-white mt-0.5">{pratica.eori_importatore}</p>
+                        ) : (
+                            <div className="flex items-center gap-1 mt-0.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+                                <span className="text-xs text-orange-400">Mancante</span>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wide">Incoterms</p>
+                        {pratica.incoterms ? (
+                            <p className="text-sm font-semibold text-white mt-0.5">{pratica.incoterms}</p>
+                        ) : (
+                            <div className="flex items-center gap-1 mt-0.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+                                <span className="text-xs text-orange-400">Mancante</span>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wide">Porto di Arrivo</p>
+                        <p className="text-sm text-white mt-0.5">{pratica.porto_arrivo ?? <span className="text-slate-500">—</span>}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wide">Spedizioniere</p>
+                        <p className="text-sm text-white mt-0.5 truncate">{pratica.spedizioniere ?? <span className="text-slate-500">—</span>}</p>
+                    </div>
+                </div>
+
+                {!pratica.eori_importatore && (
+                    <div className="flex items-start gap-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 mt-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-orange-400 mt-0.5 shrink-0" />
+                        <p className="text-xs text-orange-300">
+                            <span className="font-semibold">EORI mancante</span> — obbligatorio per qualsiasi dichiarazione doganale UE.
+                            Richiedilo all'Agenzia delle Dogane (AIDA) se non disponibile.
+                        </p>
+                    </div>
+                )}
+
+                {pratica.incoterms === "CIF" && !docsByTipo["insurance_certificate"] && (
+                    <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mt-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 shrink-0" />
+                        <p className="text-xs text-yellow-300">
+                            <span className="font-semibold">Incoterms CIF rilevato</span> — l'insurance certificate è obbligatoria. Il valore assicurativo
+                            entra nella base imponibile doganale (CIF = Cost + Insurance + Freight).
+                        </p>
+                    </div>
+                )}
+            </div>
+
             {/* Documents */}
             <div className="glass-card overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-700">
-                    <h2 className="text-base font-semibold text-white">Documenti di Trasporto</h2>
+                    <h2 className="text-base font-semibold text-white">Documenti di Trasporto e Importazione</h2>
                 </div>
                 <div className="divide-y divide-slate-700/40">
-                    {DOC_TYPES.map(({ tipo, label, required, icon: Icon }) => {
+                    {DOC_TYPES.map(({ tipo, label, required: isRequired, hint }) => {
                         const doc = docsByTipo[tipo];
+                        const isCIFConditional = tipo === "insurance_certificate" && pratica.incoterms === "CIF";
+
                         return (
-                            <div key={tipo} className="flex items-center justify-between px-6 py-4 gap-4">
-                                <div className="flex items-center gap-3 flex-1">
-                                    {doc ? <CheckCircle className="w-5 h-5 text-green-400 shrink-0" /> : <Circle className="w-5 h-5 text-slate-600 shrink-0" />}
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium text-white">{label}</p>
-                                            {required && <span className="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">Obbligatorio</span>}
-                                        </div>
-                                        {doc && (
-                                            <div className="mt-0.5 flex items-center gap-3 flex-wrap">
-                                                <span className="text-xs text-slate-400">
-                                                    {doc.nome_file} — {formatDate(doc.uploaded_at?.toString())}
-                                                    {doc.valore_commerciale && <span className="ml-2">Valore: {doc.valore_commerciale} {doc.valuta}</span>}
-                                                </span>
-                                                {doc.url_storage && (
-                                                    <a href={doc.url_storage} target="_blank" rel="noopener noreferrer"
-                                                       className="text-xs text-blue-400 hover:text-blue-300 underline shrink-0 transition">
-                                                        Visualizza ↗
-                                                    </a>
-                                                )}
+                            <div key={tipo} className="px-6 py-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                        {doc ? <CheckCircle className="w-5 h-5 text-green-400 shrink-0 mt-0.5" /> : <Circle className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-sm font-medium text-white">{label}</p>
+                                                {isRequired && <span className="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">Obbligatorio</span>}
+                                                {isCIFConditional && !doc && <span className="text-[10px] text-yellow-400 bg-yellow-500/10 px-1.5 py-0.5 rounded">Richiesta (CIF)</span>}
                                             </div>
-                                        )}
+                                            {!doc && hint && (
+                                                <div className="flex items-start gap-1.5 mt-1">
+                                                    <Info className="w-3 h-3 text-slate-500 mt-0.5 shrink-0" />
+                                                    <p className="text-xs text-slate-500">{hint}</p>
+                                                </div>
+                                            )}
+                                            {doc && (
+                                                <div className="mt-1 space-y-1">
+                                                    <div className="flex items-center gap-3 flex-wrap">
+                                                        <span className="text-xs text-slate-400">
+                                                            {doc.nome_file} — {formatDate(doc.uploaded_at?.toString())}
+                                                            {doc.valore_commerciale && <span className="ml-2">{Number(doc.valore_commerciale).toLocaleString()} {doc.valuta}</span>}
+                                                            {(doc as any).peso_doc_kg && <span className="ml-2">{Number((doc as any).peso_doc_kg).toLocaleString()} kg</span>}
+                                                        </span>
+                                                        {doc.url_storage && (
+                                                            <a href={doc.url_storage} target="_blank" rel="noopener noreferrer"
+                                                                className="text-xs text-blue-400 hover:text-blue-300 underline shrink-0 transition">
+                                                                Visualizza ↗
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                    {doc.codice_hs_nel_doc && (
+                                                        <span className="text-[10px] font-mono bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded">
+                                                            HS: {doc.codice_hs_nel_doc}
+                                                        </span>
+                                                    )}
+                                                    {(doc as any).incoterms_doc && pratica.incoterms && (doc as any).incoterms_doc !== pratica.incoterms && (
+                                                        <div className="flex items-center gap-1 text-xs text-orange-400">
+                                                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                                                            Incoterms nel documento ({(doc as any).incoterms_doc}) diversi dalla pratica ({pratica.incoterms})
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    <DocumentUploadModal category="doganale" praticaId={id} tipoDocumento={tipo} tipoLabel={label} existingId={doc?.id} />
                                 </div>
-                                <DocumentUploadModal category="doganale" praticaId={id} tipoDocumento={tipo} tipoLabel={label} existingId={doc?.id} />
                             </div>
                         );
                     })}
                 </div>
             </div>
 
-            {/* Real cross-checks */}
+            {/* Componenti doganali reminder */}
+            {componenti.length > 0 && (
+                <div className="glass-card p-4">
+                    <div className="flex items-start gap-3">
+                        <Package className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-white">
+                                {componenti.length} {componenti.length === 1 ? "componente aggiuntivo" : "componenti aggiuntivi"} registrati
+                            </p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                Peso totale componenti: <span className="text-white">{compTotKg.toFixed(0)} kg</span>
+                                {macchinario?.peso_lordo_kg && <> — Peso totale atteso sul BL: <span className="text-white">{(Number(macchinario.peso_lordo_kg) + compTotKg).toFixed(0)} kg</span></>}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                                Verifica che tutti i componenti siano elencati nella fattura commerciale e nella packing list.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cross-checks */}
             <div className="glass-card overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-700">
                     <h3 className="text-base font-semibold text-white">Controlli di Coerenza Incrociata</h3>

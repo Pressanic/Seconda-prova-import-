@@ -15,6 +15,7 @@ interface Props {
     praticaId: string;
     macchinarioId?: string; // required for CE
     existingId?: string;
+    componenteId?: string; // set when the CE doc belongs to a specific component
 }
 
 const inputClass = "w-full bg-slate-800 border border-slate-600 text-white placeholder-slate-400 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
@@ -187,7 +188,7 @@ function DoganaliFields({ tipo, form, setForm, extracted }: { tipo: string; form
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
-export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel, praticaId, macchinarioId, existingId }: Props) {
+export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel, praticaId, macchinarioId, existingId, componenteId }: Props) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState<1 | 2>(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -259,6 +260,7 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         macchinario_id: macchinarioId,
+                        componente_id: componenteId ?? null,
                         tipo_documento: tipoDocumento,
                         nome_file, url_storage,
                         normativa_citata: form.normativa_citata || null,

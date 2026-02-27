@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Public routes accessible without authentication
 const PUBLIC_ROUTES = ["/", "/login"];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
     const { nextUrl, cookies } = req;
 
     const isApiAuth = nextUrl.pathname.startsWith("/api/auth");

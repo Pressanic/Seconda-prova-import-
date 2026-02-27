@@ -162,8 +162,8 @@ export const documenti_ce = pgTable("documenti_ce", {
     // ─── Dati estratti / inseriti ─────────────────────────────────────────────
     normativa_citata: varchar("normativa_citata", { length: 255 }),
     norme_armonizzate: jsonb("norme_armonizzate").default([]),
-    // array di norme citate nel documento — es. ["EN ISO 20430:2021", "ISO 12100:2010"]
-    // EN ISO 20430:2021 è la norma specifica per presse ad iniezione plastica
+    // array di norme citate nel documento — es. ["EN ISO 20430:2020", "ISO 12100:2010"]
+    // EN ISO 20430:2020 è la norma specifica per presse ad iniezione plastica
     normativa_valida: boolean("normativa_valida"),
     data_documento: date("data_documento"),
     firmato: boolean("firmato").default(false),
