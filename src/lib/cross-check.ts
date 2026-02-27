@@ -307,6 +307,23 @@ export function runCrossChecks(params: {
         }
     }
 
+    // ─── CHECK CE — numero seriale componente vs dichiarazione CE ────────────
+
+    for (const comp of componenti.filter(c => c.ha_marcatura_ce && c.numero_seriale?.trim())) {
+        const ceComp = documenti_ce.find(d => d.componente_id === comp.id);
+        if (!ceComp?.dati_estratti?.numero_seriale) continue;
+        if (ceComp.dati_estratti.numero_seriale !== comp.numero_seriale) {
+            anomalie.push({
+                codice: `CE_COMP_SERIALE_MISMATCH_${comp.id.substring(0, 8).toUpperCase()}`,
+                categoria: "coerenza",
+                severita: "alta",
+                messaggio: `Seriale componente "${comp.descrizione}": dichiarazione CE riporta "${ceComp.dati_estratti.numero_seriale}", scheda componente riporta "${comp.numero_seriale}"`,
+                raccomandazione: `Verificare che la Dichiarazione CE del componente "${comp.descrizione}" si riferisca all'unità corretta. Il numero di serie deve coincidere esattamente.`,
+                penalita: 15,
+            });
+        }
+    }
+
     // ─── CHECK DOGANALE — documenti obbligatori ────────────────────────────────
 
     const tipiDog = documenti_doganali.map(d => d.tipo_documento);

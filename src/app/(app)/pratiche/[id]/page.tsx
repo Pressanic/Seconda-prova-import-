@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pratiche, macchinari, documenti_ce, documenti_doganali, risk_scores } from "@/lib/db/schema";
+import { pratiche, macchinari, documenti_ce, documenti_doganali, risk_scores, componenti_aggiuntivi } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -28,7 +28,10 @@ export default async function PraticaOverviewPage({ params }: { params: Promise<
     if (!pratica) notFound();
 
     const [macchinario] = await db.select().from(macchinari).where(eq(macchinari.pratica_id, id)).limit(1);
-    const docsCE = macchinario ? await db.select().from(documenti_ce).where(eq(documenti_ce.macchinario_id, macchinario.id)) : [];
+    const [docsCE, componenti] = await Promise.all([
+        macchinario ? db.select().from(documenti_ce).where(eq(documenti_ce.macchinario_id, macchinario.id)) : Promise.resolve([]),
+        macchinario ? db.select().from(componenti_aggiuntivi).where(eq(componenti_aggiuntivi.macchinario_id, macchinario.id)) : Promise.resolve([]),
+    ]);
     const docsDoganali = await db.select().from(documenti_doganali).where(eq(documenti_doganali.pratica_id, id));
     const [riskScore] = await db.select().from(risk_scores).where(eq(risk_scores.pratica_id, id))
         .orderBy(desc(risk_scores.calcolato_at)).limit(1);
@@ -184,6 +187,7 @@ export default async function PraticaOverviewPage({ params }: { params: Promise<
                                 { label: "Azionamento", value: macchinario.tipo_azionamento ?? "—" },
                                 { label: "Forza chiusura", value: macchinario.forza_chiusura_kn ? `${macchinario.forza_chiusura_kn} kN` : "—" },
                                 { label: "Peso lordo", value: macchinario.peso_lordo_kg ? `${macchinario.peso_lordo_kg} kg` : "—" },
+                                { label: "Componenti aggiuntivi", value: componenti.length === 0 ? "Nessuno" : `${componenti.length} (${componenti.filter(c => c.ha_marcatura_ce).length} con CE richiesta)` },
                             ].map(({ label, value }) => (
                                 <div key={label}>
                                     <p className="text-xs text-slate-500 mb-0.5">{label}</p>
