@@ -42,11 +42,8 @@ async function getDashboardData(org_id: string) {
             fornitore_cinese: pratiche.fornitore_cinese,
             stato: pratiche.stato,
             data_prevista_arrivo: pratiche.data_prevista_arrivo,
-            score_globale: risk_scores.score_globale,
-            livello_rischio: risk_scores.livello_rischio,
         })
             .from(pratiche)
-            .leftJoin(risk_scores, eq(risk_scores.pratica_id, pratiche.id))
             .where(eq(pratiche.organization_id, org_id))
             .orderBy(desc(pratiche.created_at))
             .limit(10),
@@ -111,6 +108,25 @@ async function getDashboardData(org_id: string) {
 
     const senza_dimensioni = activeMacchinariList.filter(m => !m.lunghezza_cm).length;
 
+    // Latest risk score per pratica (fix: no leftJoin to avoid duplicates)
+    const listaIds = lista.map(p => p.id);
+    const listaScores = listaIds.length > 0
+        ? await db.select({
+            pratica_id: risk_scores.pratica_id,
+            score_globale: risk_scores.score_globale,
+            livello_rischio: risk_scores.livello_rischio,
+        }).from(risk_scores).where(inArray(risk_scores.pratica_id, listaIds)).orderBy(desc(risk_scores.calcolato_at))
+        : [];
+    const scoreMap = new Map<string, { score_globale: number | null; livello_rischio: string | null }>();
+    for (const s of listaScores) {
+        if (s.pratica_id && !scoreMap.has(s.pratica_id)) scoreMap.set(s.pratica_id, s);
+    }
+    const listaConScore = lista.map(p => ({
+        ...p,
+        score_globale: scoreMap.get(p.id)?.score_globale ?? null,
+        livello_rischio: scoreMap.get(p.id)?.livello_rischio ?? null,
+    }));
+
     return {
         pratiche_attive: pratiche_attive_res[0]?.count ?? 0,
         pratiche_a_rischio: pratiche_a_rischio_res[0]?.count ?? 0,
@@ -119,7 +135,7 @@ async function getDashboardData(org_id: string) {
         ce_incompleta,
         doganali_incompleti,
         senza_dimensioni,
-        lista,
+        lista: listaConScore,
     };
 }
 

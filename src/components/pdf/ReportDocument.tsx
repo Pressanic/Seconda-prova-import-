@@ -159,6 +159,7 @@ interface ReportData {
         score_globale: number;
         score_compliance_ce: number;
         score_doganale: number;
+        score_coerenza: number;
         livello_rischio: string;
         dettaglio_penalita: any[];
         raccomandazioni: any[];
@@ -201,6 +202,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
     const globalScore = data.riskScore ? getScoreStyle(data.riskScore.score_globale) : null;
     const ceScore = data.riskScore ? getScoreStyle(data.riskScore.score_compliance_ce) : null;
     const dgScore = data.riskScore ? getScoreStyle(data.riskScore.score_doganale) : null;
+    const coerScore = data.riskScore ? getScoreStyle(data.riskScore.score_coerenza) : null;
 
     return (
         <Document
@@ -288,14 +290,14 @@ export function ReportDocument({ data }: { data: ReportData }) {
                                 <Text style={[{ fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 2 }, globalScore.text]}>
                                     SCORE GLOBALE — {data.riskScore.livello_rischio.toUpperCase()}
                                 </Text>
-                                <Text style={{ fontSize: 7, color: "#64748b" }}>Formula: (CE × 0.55) + (Doganale × 0.45)</Text>
+                                <Text style={{ fontSize: 7, color: "#64748b" }}>Formula: (CE × 50%) + (Doganale × 35%) + (Coerenza × 15%)</Text>
                             </View>
                             <Text style={[styles.scoreNumber, globalScore.text]}>{data.riskScore.score_globale}/100</Text>
                         </View>
                         <View style={styles.row}>
                             <View style={[styles.col, styles.scoreBox, ceScore.box, { marginBottom: 0 }]}>
                                 <View>
-                                    <Text style={[{ fontSize: 7, fontFamily: "Helvetica-Bold" }, ceScore.text]}>CE Compliance (×0.55)</Text>
+                                    <Text style={[{ fontSize: 7, fontFamily: "Helvetica-Bold" }, ceScore.text]}>CE Compliance (×50%)</Text>
                                 </View>
                                 <Text style={[{ fontSize: 14, fontFamily: "Helvetica-Bold" }, ceScore.text]}>
                                     {data.riskScore.score_compliance_ce}
@@ -303,12 +305,22 @@ export function ReportDocument({ data }: { data: ReportData }) {
                             </View>
                             <View style={[styles.col, styles.scoreBox, dgScore.box, { marginBottom: 0 }]}>
                                 <View>
-                                    <Text style={[{ fontSize: 7, fontFamily: "Helvetica-Bold" }, dgScore.text]}>Doganale (×0.45)</Text>
+                                    <Text style={[{ fontSize: 7, fontFamily: "Helvetica-Bold" }, dgScore.text]}>Doganale (×35%)</Text>
                                 </View>
                                 <Text style={[{ fontSize: 14, fontFamily: "Helvetica-Bold" }, dgScore.text]}>
                                     {data.riskScore.score_doganale}
                                 </Text>
                             </View>
+                            {coerScore && (
+                                <View style={[styles.col, styles.scoreBox, coerScore.box, { marginBottom: 0 }]}>
+                                    <View>
+                                        <Text style={[{ fontSize: 7, fontFamily: "Helvetica-Bold" }, coerScore.text]}>Coerenza (×15%)</Text>
+                                    </View>
+                                    <Text style={[{ fontSize: 14, fontFamily: "Helvetica-Bold" }, coerScore.text]}>
+                                        {data.riskScore.score_coerenza}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     </>
                 )}
@@ -422,8 +434,8 @@ export function ReportDocument({ data }: { data: ReportData }) {
                             {data.riskScore.dettaglio_penalita.map((p: any, i: number) => (
                                 <View key={i} style={styles.penaltyRow}>
                                     <Text style={styles.penaltyCode}>{p.codice}</Text>
-                                    <Text style={styles.penaltyDesc}>{p.descrizione}</Text>
-                                    <Text style={[styles.tdTextSmall, { minWidth: 50 }]}>{p.severity}</Text>
+                                    <Text style={styles.penaltyDesc}>{p.messaggio}</Text>
+                                    <Text style={[styles.tdTextSmall, { minWidth: 50 }]}>{p.severita}</Text>
                                     <Text style={styles.penaltyValue}>{p.penalita}</Text>
                                 </View>
                             ))}

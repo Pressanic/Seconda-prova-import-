@@ -4,14 +4,13 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
     pratiche, macchinari, documenti_ce, documenti_doganali,
-    organismi_notificati, risk_scores, organizations
+    organismi_notificati, risk_scores, organizations,
 } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { ReportDocument } from "@/components/pdf/ReportDocument";
 import type { DocumentProps } from "@react-pdf/renderer";
-import { calcolaRiskScore } from "@/lib/services/risk-engine";
 
 export async function GET(
     request: NextRequest,
@@ -45,13 +44,9 @@ export async function GET(
             .where(eq(organismi_notificati.macchinario_id, macch.id)).limit(1)
         : [null];
 
-    // Compute live risk score
-    const liveScore = calcolaRiskScore({
-        documenti_ce: docsCE.map(d => ({ ...d, stato_validazione: d.stato_validazione ?? "da_verificare" })),
-        organismo: organismo ? { stato_verifica: organismo.stato_verifica ?? "non_verificato" } : null,
-        documenti_doganali: docsDoganali.map(d => ({ ...d, stato_validazione: d.stato_validazione ?? "da_verificare" })),
-        codice_hs_selezionato: macch?.codice_taric_selezionato,
-    });
+    // Use stored risk score (from runCrossChecks engine)
+    const [latestScore] = await db.select().from(risk_scores)
+        .where(eq(risk_scores.pratica_id, id)).orderBy(desc(risk_scores.calcolato_at)).limit(1);
 
     const reportData = {
         pratica: {
@@ -83,7 +78,15 @@ export async function GET(
             nome_file: d.nome_file,
             stato_validazione: d.stato_validazione,
         })),
-        riskScore: liveScore,
+        riskScore: latestScore ? {
+            score_globale: Number(latestScore.score_globale),
+            score_compliance_ce: Number(latestScore.score_compliance_ce),
+            score_doganale: Number(latestScore.score_doganale),
+            score_coerenza: Number(latestScore.score_coerenza ?? 100),
+            livello_rischio: latestScore.livello_rischio,
+            dettaglio_penalita: (latestScore.dettaglio_penalita as any[]) ?? [],
+            raccomandazioni: (latestScore.raccomandazioni as string[]) ?? [],
+        } : null,
         generatedAt: new Date().toLocaleString("it-IT"),
         orgName: org?.nome ?? "—",
     };

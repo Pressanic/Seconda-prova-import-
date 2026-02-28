@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
     pratiche, macchinari, documenti_ce, documenti_doganali,
-    organismi_notificati, risk_scores, organizations
+    organismi_notificati, risk_scores, organizations,
 } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -11,7 +11,6 @@ import {
     FileText, Download, CheckCircle, XCircle, AlertTriangle,
     Circle, Shield, Package, Truck, TrendingDown, BookOpen
 } from "lucide-react";
-import { calcolaRiskScore } from "@/lib/services/risk-engine";
 import RiskScoreBadge from "@/components/ui/RiskScoreBadge";
 import { formatDate } from "@/lib/utils";
 
@@ -58,12 +57,17 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             .where(eq(organismi_notificati.macchinario_id, macch.id)).limit(1)
         : [null];
 
-    const liveScore = calcolaRiskScore({
-        documenti_ce: docsCE.map(d => ({ ...d, stato_validazione: d.stato_validazione ?? "da_verificare" })),
-        organismo: organismo ? { stato_verifica: organismo.stato_verifica ?? "non_verificato" } : null,
-        documenti_doganali: docsDoganali.map(d => ({ ...d, stato_validazione: d.stato_validazione ?? "da_verificare" })),
-        codice_hs_selezionato: macch?.codice_taric_selezionato,
-    });
+    // Use stored risk score (from runCrossChecks engine)
+    const [latestScore] = await db.select().from(risk_scores)
+        .where(eq(risk_scores.pratica_id, id)).orderBy(desc(risk_scores.calcolato_at)).limit(1);
+
+    const score = latestScore ? Number(latestScore.score_globale) : null;
+    const scoreCE = latestScore ? Number(latestScore.score_compliance_ce) : null;
+    const scoreDog = latestScore ? Number(latestScore.score_doganale) : null;
+    const scoreCoer = latestScore ? Number(latestScore.score_coerenza ?? 100) : null;
+    const level = latestScore?.livello_rischio ?? "da_verificare";
+    const anomalie = (latestScore?.dettaglio_penalita as any[]) ?? [];
+    const raccomandazioni = (latestScore?.raccomandazioni as string[]) ?? [];
 
     return (
         <div className="space-y-5 max-w-4xl">
@@ -76,7 +80,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                             Report di Conformità
                         </h2>
                         <p className="text-sm text-slate-400 mt-0.5">
-                            Anteprima del report — generato in tempo reale
+                            Anteprima del report — basato sull&apos;ultimo risk score calcolato
                         </p>
                     </div>
                     <a
@@ -126,7 +130,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                             </div>
                             <div>
                                 <p className="text-[10px] text-slate-500 uppercase mb-0.5">Data Prevista Arrivo</p>
-                                <p className="text-sm text-white">{pratica.data_prevista_arrivo ?? "—"}</p>
+                                <p className="text-sm text-white">{formatDate(pratica.data_prevista_arrivo)}</p>
                             </div>
                         </div>
                     </div>
@@ -159,42 +163,41 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     )}
 
                     {/* Section 3: Risk Score */}
-                    <div>
-                        <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest border-b border-blue-500/20 pb-2 mb-3">
-                            3. Risk Score Complessivo
-                        </h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="col-span-1 flex justify-center">
-                                <RiskScoreBadge score={liveScore.score_globale} level={liveScore.livello_rischio} size="lg" />
-                            </div>
-                            <div className="col-span-2 space-y-3">
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <p className="text-xs text-slate-400">Score CE (×0.55)</p>
-                                        <span className={`text-sm font-bold ${liveScore.score_compliance_ce >= 80 ? "text-green-400" : liveScore.score_compliance_ce >= 60 ? "text-yellow-400" : "text-red-400"}`}>
-                                            {liveScore.score_compliance_ce}/100
-                                        </span>
-                                    </div>
-                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full ${liveScore.score_compliance_ce >= 80 ? "bg-green-500" : liveScore.score_compliance_ce >= 60 ? "bg-yellow-500" : "bg-red-500"}`}
-                                            style={{ width: `${liveScore.score_compliance_ce}%` }} />
-                                    </div>
+                    {score !== null ? (
+                        <div>
+                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest border-b border-blue-500/20 pb-2 mb-3">
+                                3. Risk Score Complessivo
+                            </h3>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="col-span-1 flex justify-center">
+                                    <RiskScoreBadge score={score} level={level} size="lg" />
                                 </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <p className="text-xs text-slate-400">Score Doganale (×0.45)</p>
-                                        <span className={`text-sm font-bold ${liveScore.score_doganale >= 80 ? "text-green-400" : liveScore.score_doganale >= 60 ? "text-yellow-400" : "text-red-400"}`}>
-                                            {liveScore.score_doganale}/100
-                                        </span>
-                                    </div>
-                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full ${liveScore.score_doganale >= 80 ? "bg-green-500" : liveScore.score_doganale >= 60 ? "bg-yellow-500" : "bg-red-500"}`}
-                                            style={{ width: `${liveScore.score_doganale}%` }} />
-                                    </div>
+                                <div className="col-span-2 space-y-2.5">
+                                    {[
+                                        { label: "CE Compliance", value: scoreCE! },
+                                        { label: "Doganale", value: scoreDog! },
+                                        { label: "Coerenza dati", value: scoreCoer! },
+                                    ].map(({ label, value }) => (
+                                        <div key={label}>
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="text-slate-400">{label}</span>
+                                                <span className={`font-medium ${value >= 80 ? "text-green-400" : value >= 60 ? "text-yellow-400" : "text-red-400"}`}>{value}/100</span>
+                                            </div>
+                                            <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                                <div className={`h-full rounded-full ${value >= 80 ? "bg-green-500" : value >= 60 ? "bg-yellow-500" : "bg-red-500"}`}
+                                                    style={{ width: `${value}%` }} />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="text-center py-4 text-sm text-slate-500">
+                            Risk score non ancora calcolato —{" "}
+                            <Link href={`/pratiche/${id}/risk-score`} className="text-blue-400 hover:text-blue-300">calcola ora</Link>
+                        </div>
+                    )}
 
                     {/* Section 4: Documenti CE */}
                     <div>
@@ -222,7 +225,6 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                                 })}
                             </div>
                         )}
-
                         {organismo && (
                             <div className="mt-3 pt-3 border-t border-slate-700/30">
                                 <p className="text-xs text-slate-500 uppercase mb-1">Organismo Notificato</p>
@@ -264,20 +266,20 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                         )}
                     </div>
 
-                    {/* Section 6: Penalità */}
-                    {liveScore.dettaglio_penalita.length > 0 && (
+                    {/* Section 6: Anomalie */}
+                    {anomalie.length > 0 && (
                         <div>
                             <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest border-b border-blue-500/20 pb-2 mb-3 flex items-center gap-2">
-                                <TrendingDown className="w-3.5 h-3.5" /> 6. Penalità ({liveScore.dettaglio_penalita.length})
+                                <TrendingDown className="w-3.5 h-3.5" /> 6. Anomalie Rilevate ({anomalie.length})
                             </h3>
                             <div className="divide-y divide-slate-700/30">
-                                {liveScore.dettaglio_penalita.map((p) => (
-                                    <div key={p.codice} className="flex items-start justify-between py-2 gap-4">
+                                {anomalie.map((a: any) => (
+                                    <div key={a.codice} className="flex items-start justify-between py-2 gap-4">
                                         <div className="flex items-start gap-2">
-                                            <code className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{p.codice}</code>
-                                            <p className="text-sm text-slate-300">{p.descrizione}</p>
+                                            <code className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{a.codice}</code>
+                                            <p className="text-sm text-slate-300">{a.messaggio}</p>
                                         </div>
-                                        <span className="text-sm font-bold text-red-400 shrink-0">{p.penalita}</span>
+                                        <span className="text-sm font-bold text-red-400 shrink-0">-{a.penalita}</span>
                                     </div>
                                 ))}
                             </div>
@@ -285,13 +287,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     )}
 
                     {/* Section 7: Raccomandazioni */}
-                    {liveScore.raccomandazioni.length > 0 && (
+                    {raccomandazioni.length > 0 && (
                         <div>
                             <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest border-b border-blue-500/20 pb-2 mb-3 flex items-center gap-2">
                                 <BookOpen className="w-3.5 h-3.5" /> 7. Raccomandazioni
                             </h3>
                             <ol className="space-y-2">
-                                {liveScore.raccomandazioni.map((r, i) => (
+                                {raccomandazioni.map((r, i) => (
                                     <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
                                         <span className="text-blue-400 font-bold shrink-0 min-w-[20px]">{i + 1}.</span>
                                         {r}

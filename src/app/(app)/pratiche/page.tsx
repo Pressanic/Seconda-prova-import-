@@ -1,30 +1,46 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pratiche, risk_scores } from "@/lib/db/schema";
-import { eq, desc, sql, count } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
-import { Plus, FolderOpen, ArrowRight, Clock, SlidersHorizontal } from "lucide-react";
+import { Plus, FolderOpen, ArrowRight, Clock } from "lucide-react";
 import RiskScoreBadge from "@/components/ui/RiskScoreBadge";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { formatDate } from "@/lib/utils";
 
 async function getPratiche(org_id: string) {
-    return db
-        .select({
-            id: pratiche.id,
-            codice_pratica: pratiche.codice_pratica,
-            nome_pratica: pratiche.nome_pratica,
-            fornitore_cinese: pratiche.fornitore_cinese,
-            stato: pratiche.stato,
-            data_prevista_arrivo: pratiche.data_prevista_arrivo,
-            created_at: pratiche.created_at,
-            score_globale: risk_scores.score_globale,
-            livello_rischio: risk_scores.livello_rischio,
-        })
-        .from(pratiche)
-        .leftJoin(risk_scores, eq(risk_scores.pratica_id, pratiche.id))
-        .where(eq(pratiche.organization_id, org_id))
-        .orderBy(desc(pratiche.created_at));
+    const lista = await db.select({
+        id: pratiche.id,
+        codice_pratica: pratiche.codice_pratica,
+        nome_pratica: pratiche.nome_pratica,
+        fornitore_cinese: pratiche.fornitore_cinese,
+        stato: pratiche.stato,
+        data_prevista_arrivo: pratiche.data_prevista_arrivo,
+        created_at: pratiche.created_at,
+    }).from(pratiche).where(eq(pratiche.organization_id, org_id)).orderBy(desc(pratiche.created_at));
+
+    if (lista.length === 0) return [];
+
+    const praticaIds = lista.map(p => p.id);
+    const allScores = await db.select({
+        pratica_id: risk_scores.pratica_id,
+        score_globale: risk_scores.score_globale,
+        livello_rischio: risk_scores.livello_rischio,
+    }).from(risk_scores).where(inArray(risk_scores.pratica_id, praticaIds)).orderBy(desc(risk_scores.calcolato_at));
+
+    // Keep only latest score per pratica (first occurrence since ordered by calcolato_at desc)
+    const scoreMap = new Map<string, { score_globale: number | null; livello_rischio: string | null }>();
+    for (const s of allScores) {
+        if (s.pratica_id && !scoreMap.has(s.pratica_id)) {
+            scoreMap.set(s.pratica_id, { score_globale: s.score_globale, livello_rischio: s.livello_rischio });
+        }
+    }
+
+    return lista.map(p => ({
+        ...p,
+        score_globale: scoreMap.get(p.id)?.score_globale ?? null,
+        livello_rischio: scoreMap.get(p.id)?.livello_rischio ?? null,
+    }));
 }
 
 export default async function PraticheListPage() {
