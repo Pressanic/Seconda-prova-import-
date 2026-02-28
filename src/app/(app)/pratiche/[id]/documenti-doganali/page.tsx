@@ -263,16 +263,44 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
                                                             {doc.nome_file} — {formatDate(doc.uploaded_at?.toString())}
                                                             {doc.valore_commerciale && <span className="ml-2">{Number(doc.valore_commerciale).toLocaleString()} {doc.valuta}</span>}
                                                             {(doc as any).peso_doc_kg && <span className="ml-2">{Number((doc as any).peso_doc_kg).toLocaleString()} kg</span>}
+                                                            {(doc as any).numero_colli_doc && <span className="ml-2">{(doc as any).numero_colli_doc} colli</span>}
                                                         </span>
                                                         {doc.url_storage && (
                                                             <DocumentPreviewButton url={doc.url_storage} nomeFile={doc.nome_file ?? ""} />
                                                         )}
                                                     </div>
-                                                    {doc.codice_hs_nel_doc && (
-                                                        <span className="text-[10px] font-mono bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded">
-                                                            HS: {doc.codice_hs_nel_doc}
-                                                        </span>
+                                                    {/* Numero riferimento + data documento */}
+                                                    {((doc as any).numero_riferimento_doc || (doc as any).data_documento) && (
+                                                        <div className="flex items-center gap-3 flex-wrap">
+                                                            {(doc as any).numero_riferimento_doc && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wide">
+                                                                        {tipo === "bill_of_lading" ? "N° BL" : tipo === "fattura_commerciale" ? "N° Fattura" : tipo === "certificato_origine" ? "N° Cert." : "Rif."}
+                                                                    </span>
+                                                                    <span className="text-xs font-mono text-white">{(doc as any).numero_riferimento_doc}</span>
+                                                                </span>
+                                                            )}
+                                                            {(doc as any).data_documento && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wide">Data</span>
+                                                                    <span className="text-xs text-slate-300">{formatDate((doc as any).data_documento)}</span>
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
+                                                    {/* Tags: HS code, tipo BL */}
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {doc.codice_hs_nel_doc && (
+                                                            <span className="text-[10px] font-mono bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded">
+                                                                HS: {doc.codice_hs_nel_doc}
+                                                            </span>
+                                                        )}
+                                                        {tipo === "bill_of_lading" && (doc as any).tipo_bl && (
+                                                            <span className="text-[10px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">
+                                                                {(doc as any).tipo_bl === "obl" ? "Original BL" : (doc as any).tipo_bl === "sea_waybill" ? "Sea Waybill" : "Express BL"}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {(doc as any).incoterms_doc && pratica.incoterms && (doc as any).incoterms_doc !== pratica.incoterms && (
                                                         <div className="flex items-center gap-1 text-xs text-orange-400">
                                                             <AlertTriangle className="w-3 h-3 shrink-0" />
