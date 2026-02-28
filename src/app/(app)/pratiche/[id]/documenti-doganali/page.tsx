@@ -7,6 +7,7 @@ import { CheckCircle, Circle, XCircle, Minus, Package, FileText, Ship, AlertTria
 import { formatDate } from "@/lib/utils";
 import DocumentUploadModal from "@/components/forms/DocumentUploadModal";
 import DocumentPreviewButton from "@/components/ui/DocumentPreviewButton";
+import ComponentiConfirmSection from "@/components/forms/ComponentiConfirmSection";
 
 // ─── Document types ───────────────────────────────────────────────────────────
 
@@ -339,6 +340,25 @@ export default async function DocumentiDoganaliPage({ params }: { params: Promis
                     </div>
                 </div>
             )}
+
+            {/* Conferma componenti in fattura / packing list */}
+            {componenti.length > 0 && (docsByTipo["fattura_commerciale"] || docsByTipo["packing_list"]) && (() => {
+                const docsConferma = (["fattura_commerciale", "packing_list"] as const)
+                    .filter(t => docsByTipo[t])
+                    .map(t => ({
+                        id: docsByTipo[t].id,
+                        tipo_documento: t,
+                        label: t === "fattura_commerciale" ? "Fattura Commerciale" : "Packing List",
+                        componenti_trovati: (docsByTipo[t].componenti_trovati as any[]) ?? [],
+                    }));
+                return (
+                    <ComponentiConfirmSection
+                        praticaId={id}
+                        componenti={componenti.map(c => ({ id: c.id, descrizione: c.descrizione }))}
+                        documenti={docsConferma}
+                    />
+                );
+            })()}
 
             {/* Cross-checks */}
             <div className="glass-card overflow-hidden">

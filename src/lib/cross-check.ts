@@ -426,30 +426,38 @@ export function runCrossChecks(params: {
     }
 
     // ─── CHECK DOGANALE — componenti trovati in fattura e packing list ─────────
+    // Solo se componenti_trovati è stato esplicitamente confermato (non vuoto).
+    // Se l'array è vuoto, la verifica non è ancora stata effettuata — skip per evitare falsi positivi.
 
-    for (const comp of componenti) {
-        const trovataInFattura = fattura?.componenti_trovati?.find(c => c.componente_id === comp.id);
-        if (!trovataInFattura?.trovato && !trovataInFattura?.confermato_manualmente) {
-            anomalie.push({
-                codice: `DOG_COMP_NON_IN_FATTURA_${comp.id.substring(0, 8).toUpperCase()}`,
-                categoria: "coerenza",
-                severita: "alta",
-                messaggio: `Componente "${comp.descrizione}" non trovato nella fattura commerciale`,
-                raccomandazione: `Ogni componente deve essere elencato separatamente in fattura con il proprio valore. Richiedere fattura aggiornata al fornitore.`,
-                penalita: 10,
-            });
+    if (fattura && (fattura.componenti_trovati?.length ?? 0) > 0) {
+        for (const comp of componenti) {
+            const trovataInFattura = (fattura.componenti_trovati ?? []).find(c => c.componente_id === comp.id);
+            if (!trovataInFattura?.trovato && !trovataInFattura?.confermato_manualmente) {
+                anomalie.push({
+                    codice: `DOG_COMP_NON_IN_FATTURA_${comp.id.substring(0, 8).toUpperCase()}`,
+                    categoria: "coerenza",
+                    severita: "alta",
+                    messaggio: `Componente "${comp.descrizione}" non trovato nella fattura commerciale`,
+                    raccomandazione: `Ogni componente deve essere elencato separatamente in fattura con il proprio valore. Richiedere fattura aggiornata al fornitore.`,
+                    penalita: 10,
+                });
+            }
         }
+    }
 
-        const trovataInPL = pl?.componenti_trovati?.find(c => c.componente_id === comp.id);
-        if (!trovataInPL?.trovato && !trovataInPL?.confermato_manualmente) {
-            anomalie.push({
-                codice: `DOG_COMP_NON_IN_PL_${comp.id.substring(0, 8).toUpperCase()}`,
-                categoria: "coerenza",
-                severita: "media",
-                messaggio: `Componente "${comp.descrizione}" non trovato nella packing list`,
-                raccomandazione: `Ogni componente deve essere elencato con peso e colli nella packing list.`,
-                penalita: 5,
-            });
+    if (pl && (pl.componenti_trovati?.length ?? 0) > 0) {
+        for (const comp of componenti) {
+            const trovataInPL = (pl.componenti_trovati ?? []).find(c => c.componente_id === comp.id);
+            if (!trovataInPL?.trovato && !trovataInPL?.confermato_manualmente) {
+                anomalie.push({
+                    codice: `DOG_COMP_NON_IN_PL_${comp.id.substring(0, 8).toUpperCase()}`,
+                    categoria: "coerenza",
+                    severita: "media",
+                    messaggio: `Componente "${comp.descrizione}" non trovato nella packing list`,
+                    raccomandazione: `Ogni componente deve essere elencato con peso e colli nella packing list.`,
+                    penalita: 5,
+                });
+            }
         }
     }
 

@@ -40,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if ("numero_riferimento_doc" in body)    updates.numero_riferimento_doc = body.numero_riferimento_doc;
     if ("stato_validazione" in body)         updates.stato_validazione = body.stato_validazione;
     if ("anomalie_rilevate" in body)         updates.anomalie_rilevate = body.anomalie_rilevate;
+    if ("componenti_trovati" in body)        updates.componenti_trovati = body.componenti_trovati;
 
     let doc: any;
     try {
