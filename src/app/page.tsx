@@ -1,5 +1,6 @@
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
+import LogoBar from "@/components/landing/LogoBar";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 import ReviewsSection from "@/components/landing/ReviewsSection";
 import PricingSection from "@/components/landing/PricingSection";
@@ -10,6 +11,7 @@ export default function HomePage() {
         <main className="min-h-screen bg-[#0f172a]">
             <Navbar />
             <HeroSection />
+            <LogoBar />
             <FeaturesSection />
             <ReviewsSection />
             <PricingSection />
