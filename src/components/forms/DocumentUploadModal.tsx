@@ -409,11 +409,29 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
-            const res = await fetch("/api/v1/extract-document", {
+
+            // Usa l'agente pratica-aware se praticaId è disponibile, altrimenti fallback al prompt singolo
+            const analyzeUrl = praticaId
+                ? `/api/v1/pratiche/${praticaId}/analyze-document`
+                : "/api/v1/extract-document";
+
+            const res = await fetch(analyzeUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ file_base64: base64, mime_type: file.type, tipo_documento: tipoDocumento }),
             });
+
+            // Se l'agente non è disponibile (503), ritenta con il prompt singolo
+            if (res.status === 503 && praticaId) {
+                const fallbackRes = await fetch("/api/v1/extract-document", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ file_base64: base64, mime_type: file.type, tipo_documento: tipoDocumento }),
+                });
+                const fallbackJson = await fallbackRes.json();
+                Object.assign(res, { json: () => Promise.resolve(fallbackJson) });
+            }
+
             const json = await res.json();
             if (json.campi_estratti && Object.keys(json.campi_estratti).length > 0) {
                 // Separate AI-internal fields from form fields
@@ -429,9 +447,11 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
                     toast(`Documento non corretto: l'AI ha rilevato "${tipo_documento_rilevato ?? "tipo sconosciuto"}" invece di "${tipoLabel}" — carica il file corretto`, "error");
                     shouldBlockStep2 = true;
                 } else if (Array.isArray(anomalie) && anomalie.length > 0) {
-                    toast(`Dati estratti — ${anomalie.length} problema/i rilevato/i dall'AI, verificali prima di salvare`, "info");
+                    const agentNote = json.agent_meta?.contesto_usato ? " (analisi contestuale)" : "";
+                    toast(`Dati estratti${agentNote} — ${anomalie.length} problema/i rilevato/i dall'AI, verificali prima di salvare`, "info");
                 } else {
-                    toast("Dati estratti con successo — verifica e salva", "info");
+                    const agentNote = json.agent_meta?.contesto_usato ? " con cross-reference pratica" : "";
+                    toast(`Dati estratti${agentNote} con successo — verifica e salva`, "info");
                 }
 
                 if (!shouldBlockStep2) {
