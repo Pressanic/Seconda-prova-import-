@@ -4,10 +4,11 @@
  *
  * Differenze rispetto al prompt singolo di extract-document/route.ts:
  * - Usa claude-sonnet-4-6 invece di claude-haiku (ragionamento migliore)
- * - Ha accesso ai dati della pratica tramite tool use (macchinario, componenti, altri documenti)
+ * - Contesto pratica iniettato direttamente nel system prompt (nessun round-trip)
  * - Può cross-referenziare tra documenti diversi nella stessa pratica
  * - Genera anomalie contestuali (es. seriale diverso dal macchinario registrato)
  * - Popola componenti_trovati per fattura/packing_list in base agli articoli estratti
+ * - verifica_norma tool per validare direttive/norme citate nel documento
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -64,18 +65,6 @@ export interface AgentAnalysisResult {
 
 const TOOLS: Anthropic.Tool[] = [
     {
-        name: "get_pratica_context",
-        description:
-            "Recupera il contesto completo della pratica: dati macchinario, componenti aggiuntivi e sommario " +
-            "dei documenti già caricati. Usalo per cross-referenziare i dati del documento in analisi " +
-            "(es. verificare che il numero seriale coincida, che il peso sia coerente, che le norme citate siano le stesse).",
-        input_schema: {
-            type: "object" as const,
-            properties: {},
-            required: [],
-        },
-    },
-    {
         name: "verifica_norma",
         description:
             "Verifica se una norma/direttiva è attualmente vigente e restituisce informazioni su di essa. " +
@@ -94,19 +83,6 @@ const TOOLS: Anthropic.Tool[] = [
 ];
 
 // ─── Tool handlers ────────────────────────────────────────────────────────────
-
-function handleGetPraticaContext(context: PraticaContext): string {
-    return JSON.stringify({
-        macchinario: context.macchinario,
-        componenti: context.componenti,
-        documenti_presenti: context.documenti_presenti,
-        pratica: {
-            incoterms: context.pratica.incoterms,
-            eori_importatore: context.pratica.eori_importatore,
-            fornitore_cinese: context.pratica.fornitore_cinese,
-        },
-    }, null, 2);
-}
 
 function handleVerificaNorma(codiceNorma: string): string {
     const normalizzato = codiceNorma.toUpperCase().replace(/\s+/g, " ").trim();
@@ -149,26 +125,38 @@ function handleVerificaNorma(codiceNorma: string): string {
 
 // ─── Sistema prompt per l'agente ──────────────────────────────────────────────
 
-function buildSystemPrompt(tipoDocumento: string): string {
+function buildSystemPrompt(tipoDocumento: string, context: PraticaContext): string {
     const normativa = getNormativaVigenteMacchine();
     const isDoganale = ["bill_of_lading", "fattura_commerciale", "packing_list", "certificato_origine", "insurance_certificate"].includes(tipoDocumento);
 
+    const contextJson = JSON.stringify({
+        macchinario: context.macchinario,
+        componenti: context.componenti,
+        documenti_presenti: context.documenti_presenti,
+        pratica: {
+            incoterms: context.pratica.incoterms,
+            eori_importatore: context.pratica.eori_importatore,
+            fornitore_cinese: context.pratica.fornitore_cinese,
+        },
+    }, null, 2);
+
     return `Sei un esperto di conformità CE e documentazione doganale per l'importazione di macchinari industriali dalla Cina all'Italia/UE.
 
-CONTESTO:
+CONTESTO NORMATIVO:
 - Normativa macchine vigente: ${normativa.codice} (vigente fino al 19/01/2027)
 - Norma specifica presse ad iniezione: EN ISO 20430:2020/2021
 - Stai analizzando un documento di tipo: ${tipoDocumento}
 
-HAI ACCESSO A DUE TOOL:
-1. get_pratica_context — usa SEMPRE questo tool come primo passo per ottenere il contesto della pratica (macchinario registrato, componenti, altri documenti già caricati). Ti permetterà di fare cross-referenze accurate.
-2. verifica_norma — usa questo tool quando trovi norme nel documento e vuoi verificare se sono vigenti.
+CONTESTO PRATICA (usa questi dati per il cross-reference):
+${contextJson}
+
+HAI ACCESSO A UN TOOL:
+- verifica_norma — usa questo tool quando trovi norme/direttive nel documento e vuoi verificare se sono vigenti.
 
 PROCESSO DI ANALISI:
-1. Prima chiama get_pratica_context per conoscere il contesto
-2. Analizza il documento alla luce del contesto
-3. Usa verifica_norma se necessario
-4. Restituisci il JSON finale con i dati estratti e le anomalie trovate
+1. Analizza il documento usando il contesto pratica fornito sopra per fare cross-reference
+2. Usa verifica_norma se trovi norme da validare
+3. Restituisci il JSON finale con i dati estratti e le anomalie trovate
 
 CROSS-REFERENCE DA EFFETTUARE (in base al tipo documento):
 ${isDoganale ? `
@@ -212,7 +200,7 @@ export async function runDocumentAgent(params: {
             documentBlock as any,
             {
                 type: "text",
-                text: `Analizza questo documento. Segui il tuo processo: prima chiama get_pratica_context, poi analizza con cross-reference, poi verifica le norme se necessario.\n\nIstruzioni specifiche per l'estrazione:\n${extractionPrompt}`,
+                text: `Analizza questo documento usando il contesto pratica nel system prompt per fare cross-reference. Usa verifica_norma per le norme che trovi.\n\nIstruzioni specifiche per l'estrazione:\n${extractionPrompt}`,
             },
         ],
     };
@@ -220,7 +208,9 @@ export async function runDocumentAgent(params: {
     const messages: Anthropic.MessageParam[] = [userMessage];
     const MAX_TURNS = 6;
     let turni = 0;
-    let contesto_usato = false;
+    const contesto_usato = true; // context is always pre-injected into system prompt
+
+    const systemPrompt = buildSystemPrompt(tipoDocumento, context);
 
     while (turni < MAX_TURNS) {
         turni++;
@@ -228,7 +218,7 @@ export async function runDocumentAgent(params: {
         const createParams: any = {
             model: "claude-sonnet-4-6",
             max_tokens: 2048,
-            system: buildSystemPrompt(tipoDocumento),
+            system: systemPrompt,
             tools: TOOLS,
             messages,
         };
@@ -275,10 +265,7 @@ export async function runDocumentAgent(params: {
         for (const toolUse of toolUses) {
             let result: string;
 
-            if (toolUse.name === "get_pratica_context") {
-                result = handleGetPraticaContext(context);
-                contesto_usato = true;
-            } else if (toolUse.name === "verifica_norma") {
+            if (toolUse.name === "verifica_norma") {
                 const input = toolUse.input as { codice_norma: string };
                 result = handleVerificaNorma(input.codice_norma ?? "");
             } else {
