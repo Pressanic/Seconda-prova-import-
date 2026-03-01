@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Shield, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Shield, Mail, Lock, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 
 const schema = z.object({
     email: z.string().email("Email non valida"),
@@ -44,7 +45,18 @@ export default function LoginPage() {
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[100px]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-950/20 via-transparent to-indigo-950/15" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_50%,_rgba(0,0,0,0.2)_100%)]" />
             </div>
+
+            {/* Back to landing */}
+            <Link
+                href="/"
+                className="absolute top-6 left-6 flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors group"
+            >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+                Home
+            </Link>
 
             <div className="relative w-full max-w-md px-4 animate-fade-in">
                 {/* Logo mark */}
