@@ -66,15 +66,22 @@ export default async function PraticaLayout({
 
                 <div className="flex items-center gap-3">
                     {riskScore && (
-                        <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-semibold", riskColors[riskScore.livello_rischio] ?? "text-slate-400")}>
-                            Score: {riskScore.score_globale} — {riskScore.livello_rischio?.toUpperCase()}
+                        <div className="flex flex-col items-end gap-0.5">
+                            <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-semibold", riskColors[riskScore.livello_rischio] ?? "text-slate-400")}>
+                                Score: {riskScore.score_globale} — {riskScore.livello_rischio?.toUpperCase()}
+                            </div>
+                            {riskScore.calcolato_at && (
+                                <span className="text-[10px] text-slate-600">
+                                    agg. {new Date(riskScore.calcolato_at).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                            )}
                         </div>
                     )}
                     <Link
                         href={`/pratiche/${id}/risk-score`}
                         className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition"
                     >
-                        Calcola Score
+                        {riskScore ? "Ricalcola" : "Calcola Score"}
                     </Link>
                     <PraticaActionsClient
                         praticaId={id}

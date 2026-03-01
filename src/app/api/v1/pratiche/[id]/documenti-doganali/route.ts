@@ -1,9 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documenti_doganali, pratiche, audit_log } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { calculateRiskScoreForPratica } from "@/lib/services/risk-score-service";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
@@ -61,6 +63,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             dati_nuovi: { tipo_documento: doc.tipo_documento, nome_file: doc.nome_file },
         });
     }
+
+    // Ricalcola il risk score in background dopo il salvataggio del documento
+    after(() => calculateRiskScoreForPratica(id, org_id, user_id, "auto_upload").catch(console.error));
 
     return NextResponse.json(doc, { status: 201 });
 }
