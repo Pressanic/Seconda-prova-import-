@@ -5,8 +5,9 @@ import { eq, desc, sql, count, and, isNull, inArray } from "drizzle-orm";
 import Link from "next/link";
 import {
     FolderOpen, AlertTriangle, TrendingUp, BarChart2, ArrowRight, Plus,
-    Clock, ShieldAlert
+    Clock, ShieldAlert, BookMarked
 } from "lucide-react";
+import { NORMATIVE, isNormativaScadenzaImminente } from "@/lib/normative-config";
 import RiskScoreBadge from "@/components/ui/RiskScoreBadge";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { formatDate } from "@/lib/utils";
@@ -296,6 +297,38 @@ export default async function DashboardPage() {
             </div>
 
             {/* Alerts */}
+            {(() => {
+                const dirMacchine = NORMATIVE.DIR_2006_42_CE;
+                const scadenzaImminente = isNormativaScadenzaImminente(dirMacchine, 365);
+                const successore = dirMacchine.successore_id ? NORMATIVE[dirMacchine.successore_id] : null;
+                if (!scadenzaImminente) return null;
+                return (
+                    <div className="glass-card p-4 border border-amber-500/30 bg-amber-500/5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <BookMarked className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-semibold text-amber-300">
+                                        Aggiornamento normativo: {dirMacchine.codice} scade il {dirMacchine.in_vigore_al}
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                        {successore
+                                            ? `Dal ${successore.in_vigore_dal} entra in vigore ${successore.codice} (${successore.nome}). Verifica che le pratiche future rispettino la nuova normativa.`
+                                            : "Verifica il registro normativo per aggiornamenti."}
+                                    </p>
+                                </div>
+                            </div>
+                            <Link
+                                href="/impostazioni/normative"
+                                className="text-xs text-amber-400 hover:text-amber-300 transition shrink-0"
+                            >
+                                Registro →
+                            </Link>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {data && (data.pratiche_senza_data > 0 || data.ce_incompleta > 0 || data.doganali_incompleti > 0 || data.senza_dimensioni > 0) && (
                 <div className="space-y-3">
                     <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Avvisi</h2>
