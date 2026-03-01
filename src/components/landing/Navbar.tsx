@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Shield, Menu, X, ArrowRight } from "lucide-react";
 
 const NAV_LINKS = [
-    { label: "Funzionalità", href: "#features" },
-    { label: "Recensioni", href: "#reviews" },
-    { label: "Prezzi", href: "#pricing" },
+    { label: "Product", href: "#features" },
+    { label: "Reviews", href: "#reviews" },
+    { label: "Pricing", href: "#pricing" },
 ];
 
 export default function Navbar() {
@@ -55,13 +55,13 @@ export default function Navbar() {
                     {/* Desktop CTAs */}
                     <div className="hidden md:flex items-center gap-3">
                         <Link href="/login" className="text-sm text-slate-400 hover:text-white transition px-3 py-2 rounded-lg hover:bg-white/5">
-                            Accedi
+                            Log in
                         </Link>
                         <Link
                             href="/login"
                             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition shadow-lg shadow-blue-600/20"
                         >
-                            Prova Gratis <ArrowRight className="w-3.5 h-3.5" />
+                            Get started free <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
                     </div>
 
@@ -91,10 +91,10 @@ export default function Navbar() {
                         ))}
                         <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
                             <Link href="/login" onClick={() => setOpen(false)} className="px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition text-center">
-                                Accedi
+                                Log in
                             </Link>
                             <Link href="/login" onClick={() => setOpen(false)} className="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-3 rounded-lg transition">
-                                Prova Gratis <ArrowRight className="w-3.5 h-3.5" />
+                                Get started free <ArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         </div>
                     </div>

@@ -1,104 +1,177 @@
 import Link from "next/link";
-import { ArrowRight, Shield, CheckCircle, Play } from "lucide-react";
+import { ArrowRight, Shield, Play, BarChart2, FileText, Zap, CheckCircle, ChevronDown } from "lucide-react";
 
-const BULLETS = [
-    "Compliance CE automatizzata (Reg. UE 2023/1230)",
-    "Classificazione HS/TARIC con dazi e restrizioni",
-    "Risk score in tempo reale con penalità codificate",
-    "Report PDF audit-ready in un click",
-];
-
-const SOCIAL_PROOF = [
-    "Ferretti Machinery",
-    "TechnoImport Italia",
-    "Barbieri Macchine",
-    "AlphaImport Group",
-    "Conti & Partners",
-];
-
-export default function HeroSection() {
+function HeroIllustration() {
     return (
-        <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 pt-16">
+        <div className="relative w-full max-w-[400px] mx-auto lg:mx-0 lg:ml-auto">
+            {/* Ambient glow */}
+            <div className="absolute -inset-6 bg-gradient-to-br from-blue-600/12 to-indigo-600/8 rounded-3xl blur-3xl pointer-events-none" />
 
-            {/* Background blobs */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-[-15%] left-[-10%] w-[700px] h-[700px] bg-blue-600/8 rounded-full blur-[140px]" />
-                <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] bg-indigo-600/8 rounded-full blur-[120px]" />
-                <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px]" />
-            </div>
+            {/* Card */}
+            <div className="relative bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 shadow-2xl shadow-black/40 backdrop-blur-sm">
 
-            {/* Grid pattern overlay */}
-            <div className="absolute inset-0 pointer-events-none"
-                style={{
-                    backgroundImage: "linear-gradient(rgba(51,65,85,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,0.15) 1px, transparent 1px)",
-                    backgroundSize: "64px 64px",
-                }} />
-
-            <div className="relative max-w-4xl mx-auto text-center">
-
-                {/* Badge */}
-                <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/20 rounded-full px-4 py-1.5 mb-8">
-                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
-                    <span className="text-blue-400 text-xs font-medium tracking-wide">Conforme Reg. UE 2023/1230 · Direttiva Macchine</span>
+                {/* Status bar */}
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                        <span className="text-xs text-slate-400 font-medium">Live verification</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-mono">IMP-2024-089</span>
                 </div>
 
-                {/* Headline */}
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-[1.1] tracking-tight mb-6">
-                    Importi macchinari{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-                        dalla Cina.
-                    </span>
-                    <br />
-                    Noi gestiamo la compliance.
-                </h1>
-
-                {/* Subheadline */}
-                <p className="text-slate-400 text-lg sm:text-xl leading-relaxed max-w-2xl mx-auto mb-10">
-                    L&apos;unica piattaforma italiana che combina verifica CE, classificazione doganale TARIC
-                    e risk score in un unico workflow strutturato.
-                </p>
-
-                {/* Bullet points */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto mb-10 text-left">
-                    {BULLETS.map(b => (
-                        <div key={b} className="flex items-start gap-2.5">
-                            <CheckCircle className="w-4.5 h-4.5 text-blue-400 shrink-0 mt-0.5 w-[18px] h-[18px]" />
-                            <span className="text-sm text-slate-300">{b}</span>
-                        </div>
-                    ))}
+                {/* Input nodes */}
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="flex flex-col items-center gap-2 bg-slate-900/70 border border-blue-500/20 rounded-xl p-3">
+                        <Shield className="w-5 h-5 text-blue-400" />
+                        <span className="text-[10px] text-slate-400 font-medium text-center leading-tight">CE Docs</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 bg-slate-900/70 border border-indigo-500/20 rounded-xl p-3">
+                        <BarChart2 className="w-5 h-5 text-indigo-400" />
+                        <span className="text-[10px] text-slate-400 font-medium text-center leading-tight">HS Code</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 bg-slate-900/70 border border-violet-500/20 rounded-xl p-3">
+                        <FileText className="w-5 h-5 text-violet-400" />
+                        <span className="text-[10px] text-slate-400 font-medium text-center leading-tight">Regulations</span>
+                    </div>
                 </div>
 
-                {/* CTAs */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
-                    <Link
-                        href="/login"
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition shadow-lg shadow-blue-600/25 text-sm w-full sm:w-auto justify-center"
-                    >
-                        Inizia Gratis <ArrowRight className="w-4 h-4" />
-                    </Link>
-                    <Link
-                        href="#features"
-                        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium px-6 py-3 rounded-xl transition text-sm w-full sm:w-auto justify-center"
-                    >
-                        <Play className="w-3.5 h-3.5 text-blue-400" /> Scopri come funziona
-                    </Link>
+                {/* Arrow down */}
+                <div className="flex justify-center my-1">
+                    <ChevronDown className="w-4 h-4 text-slate-600" />
                 </div>
 
-                {/* Social proof */}
-                <div className="border-t border-slate-800 pt-8">
-                    <p className="text-xs text-slate-600 uppercase tracking-widest mb-4 font-medium">Già usato da</p>
-                    <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-                        {SOCIAL_PROOF.map(name => (
-                            <span key={name} className="text-sm font-medium text-slate-500">{name}</span>
+                {/* AI processing node */}
+                <div className="flex items-center gap-3 bg-blue-600/10 border border-blue-500/25 rounded-xl p-3.5 mb-1">
+                    <div className="w-9 h-9 bg-blue-600/25 border border-blue-500/40 rounded-xl flex items-center justify-center shrink-0">
+                        <Zap className="w-[18px] h-[18px] text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-white">AI Analysis</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">Cross-checking compliance...</div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                        {[0, 1, 2].map(i => (
+                            <div
+                                key={i}
+                                className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
+                                style={{ animationDelay: `${i * 150}ms` }}
+                            />
                         ))}
                     </div>
                 </div>
+
+                {/* Arrow down */}
+                <div className="flex justify-center my-1">
+                    <ChevronDown className="w-4 h-4 text-slate-600" />
+                </div>
+
+                {/* Output node */}
+                <div className="flex items-center gap-3 bg-green-600/10 border border-green-500/25 rounded-xl p-3.5">
+                    <div className="w-9 h-9 bg-green-600/20 border border-green-500/30 rounded-xl flex items-center justify-center shrink-0">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-white">Cleared for import</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">Risk Score 18/100 · 0 blockers</div>
+                    </div>
+                    <div className="bg-green-500/15 border border-green-500/25 text-green-400 text-xs font-bold px-2.5 py-1 rounded-lg shrink-0">
+                        ✓
+                    </div>
+                </div>
+
+                {/* Stats footer */}
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-700/50">
+                    {[
+                        { label: "CE Documents", value: "6/6" },
+                        { label: "HS Verified", value: "8477.10" },
+                        { label: "Anomalies", value: "0" },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="text-center">
+                            <div className="text-sm font-bold text-green-400">{value}</div>
+                            <div className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wide">{label}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function HeroSection() {
+    return (
+        <section className="relative min-h-screen flex items-center overflow-hidden px-4 pt-20 pb-20">
+
+            {/* Background blobs — toned down */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-8%] w-[560px] h-[560px] bg-blue-600/6 rounded-full blur-[130px]" />
+                <div className="absolute bottom-[-8%] right-[-5%] w-[420px] h-[420px] bg-indigo-600/6 rounded-full blur-[110px]" />
             </div>
 
-            {/* Scroll indicator */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
-                <div className="w-5 h-8 border-2 border-slate-700 rounded-full flex items-start justify-center pt-1.5">
-                    <div className="w-1 h-2 bg-slate-500 rounded-full" />
+            {/* Grid pattern */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    backgroundImage:
+                        "linear-gradient(rgba(51,65,85,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,0.12) 1px, transparent 1px)",
+                    backgroundSize: "64px 64px",
+                }}
+            />
+
+            <div className="relative max-w-6xl mx-auto w-full">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-20 items-center">
+
+                    {/* ── Left: text ── */}
+                    <div className="max-w-xl">
+
+                        {/* Badge */}
+                        <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-full px-3.5 py-1.5 mb-7">
+                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                            <span className="text-slate-400 text-xs font-medium">CE · HS/TARIC · Risk Score</span>
+                        </div>
+
+                        {/* Headline */}
+                        <h1 className="text-4xl sm:text-5xl xl:text-[3.6rem] font-bold text-white leading-[1.08] tracking-tight mb-5">
+                            Secure your machinery imports into the{" "}
+                            <span className="text-blue-400">European Union.</span>
+                        </h1>
+
+                        {/* Subheadline */}
+                        <p className="text-slate-400 text-lg sm:text-xl leading-relaxed mb-9">
+                            We verify CE documentation, HS classification and regulatory coherence
+                            so your shipment doesn&apos;t get blocked.
+                        </p>
+
+                        {/* CTAs */}
+                        <div className="flex flex-col sm:flex-row items-start gap-3 mb-8">
+                            <Link
+                                href="/login"
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition shadow-lg shadow-blue-600/25 text-sm w-full sm:w-auto justify-center sm:justify-start"
+                            >
+                                Start for free <ArrowRight className="w-4 h-4" />
+                            </Link>
+                            <a
+                                href="#features"
+                                className="flex items-center gap-2 text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 bg-slate-800/40 hover:bg-slate-800/70 px-6 py-3 rounded-xl transition text-sm w-full sm:w-auto justify-center sm:justify-start"
+                            >
+                                <Play className="w-3.5 h-3.5 text-blue-400" />
+                                See how it works
+                            </a>
+                        </div>
+
+                        {/* Trust micro-proof */}
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-500">
+                            <span>No credit card required</span>
+                            <span className="text-slate-700">·</span>
+                            <span>GDPR compliant</span>
+                            <span className="text-slate-700">·</span>
+                            <span>Data stored in EU</span>
+                        </div>
+                    </div>
+
+                    {/* ── Right: illustration ── */}
+                    <div className="flex justify-center lg:justify-end">
+                        <HeroIllustration />
+                    </div>
                 </div>
             </div>
         </section>
