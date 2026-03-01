@@ -196,26 +196,105 @@ function DocRow({
                                     </div>
                                 )}
 
-                                {/* Fascicolo Tecnico: sub-section status */}
+                                {/* Manuale d'uso: lingua + versione + sezioni */}
+                                {dt.tipo === "manuale_uso" && (() => {
+                                    const extra = getFTExtra(doc);
+                                    const lingua = extra.lingua as string | undefined;
+                                    const versione = extra.versione as string | undefined;
+                                    const dataRev = extra.data_revisione as string | undefined;
+                                    const hasItalian = !lingua || ["Italiano", "Italiano + Inglese", "Multilingua"].includes(lingua);
+                                    const sezioni = [
+                                        { key: "ha_sezione_installazione", label: "Installazione" },
+                                        { key: "ha_sezione_uso_normale", label: "Uso normale" },
+                                        { key: "ha_sezione_manutenzione", label: "Manutenzione" },
+                                    ];
+                                    if (!lingua && !versione && !dataRev) return null;
+                                    return (
+                                        <div className="space-y-1.5 mt-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {lingua && (
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${hasItalian ? "bg-green-500/15 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                                                        {hasItalian ? "✓" : "✗"} {lingua}
+                                                    </span>
+                                                )}
+                                                {versione && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-400 font-mono">
+                                                        {versione}
+                                                    </span>
+                                                )}
+                                                {dataRev && (
+                                                    <span className="text-[10px] text-slate-500">
+                                                        Rev. {dataRev}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {sezioni.map(s => {
+                                                    const present = extra[s.key] === true;
+                                                    return (
+                                                        <span key={s.key} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${present ? "bg-green-500/15 text-green-400" : "bg-orange-500/10 text-orange-400"}`}>
+                                                            {present ? "✓" : "✗"} {s.label}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Fascicolo Tecnico: sub-section status + dettagli */}
                                 {dt.tipo === "fascicolo_tecnico" && (() => {
                                     const extra = getFTExtra(doc);
+                                    const responsabile = extra.responsabile_compilazione as string | undefined;
+                                    const dataComp = extra.data_compilazione as string | undefined;
+                                    const arData = extra.ar_data as string | undefined;
+                                    const arFirmatario = extra.ar_firmatario as string | undefined;
+                                    const schemiData = extra.schemi_data as string | undefined;
+                                    const schemiStandard = extra.schemi_standard as string | undefined;
                                     const subsections = [
                                         { key: "contiene_analisi_rischi", label: "Analisi Rischi", required: true },
                                         { key: "contiene_schemi_elettrici", label: "Schemi Elettrici", required: true },
                                         { key: "contiene_schemi_idraulici", label: "Schemi Idraulici", required: false },
                                         { key: "contiene_schemi_pneumatici", label: "Schemi Pneumatici", required: false },
+                                        { key: "contiene_disegni_costruttivi", label: "Disegni Costruttivi", required: false },
                                     ];
                                     return (
-                                        <div className="flex flex-wrap gap-1.5 mt-0.5">
-                                            {subsections.map(s => {
-                                                const present = extra[s.key] === true || (s.key === "contiene_analisi_rischi" && !!doc._hasLegacyAR) || (s.key === "contiene_schemi_elettrici" && !!doc._hasLegacySE);
-                                                if (!present && !s.required) return null;
-                                                return (
-                                                    <span key={s.key} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${present ? "bg-green-500/15 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                                                        {present ? "✓" : "✗"} {s.label}
-                                                    </span>
-                                                );
-                                            })}
+                                        <div className="space-y-1.5 mt-1">
+                                            {/* Intestazione fascicolo */}
+                                            {(responsabile || dataComp) && (
+                                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                                                    {dataComp && <span>Data: <span className="text-slate-400">{dataComp}</span></span>}
+                                                    {responsabile && <span>Resp.: <span className="text-slate-400">{responsabile}</span></span>}
+                                                </div>
+                                            )}
+                                            {/* Chips sottosezioni */}
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {subsections.map(s => {
+                                                    const present = extra[s.key] === true || (s.key === "contiene_analisi_rischi" && !!doc._hasLegacyAR) || (s.key === "contiene_schemi_elettrici" && !!doc._hasLegacySE);
+                                                    if (!present && !s.required) return null;
+                                                    return (
+                                                        <span key={s.key} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${present ? "bg-green-500/15 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                                                            {present ? "✓" : "✗"} {s.label}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                            {/* Dettagli AR */}
+                                            {extra.contiene_analisi_rischi && (arData || arFirmatario) && (
+                                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pl-2 border-l border-slate-700">
+                                                    <span className="text-slate-600">AR:</span>
+                                                    {arData && <span>Data <span className="text-slate-400">{arData}</span></span>}
+                                                    {arFirmatario && <span>Firmatario: <span className="text-slate-400">{arFirmatario}</span></span>}
+                                                </div>
+                                            )}
+                                            {/* Dettagli SE */}
+                                            {extra.contiene_schemi_elettrici && (schemiData || schemiStandard) && (
+                                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pl-2 border-l border-slate-700">
+                                                    <span className="text-slate-600">SE:</span>
+                                                    {schemiStandard && <span className="font-mono text-slate-400">{schemiStandard}</span>}
+                                                    {schemiData && <span>Data <span className="text-slate-400">{schemiData}</span></span>}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })()}

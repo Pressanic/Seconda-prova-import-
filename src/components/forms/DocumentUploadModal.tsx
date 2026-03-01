@@ -379,7 +379,11 @@ export default function DocumentUploadModal({ category, tipoDocumento, tipoLabel
     const reset = () => {
         if (isUpdate && existingDoc) {
             // In update mode: pre-fill with existing data, skip to step 2
-            const prefilled = normalizeExtracted({ ...existingDoc });
+            // dati_extra contains type-specific form fields (ha_sezione_installazione,
+            // contiene_analisi_rischi, ecc.) stored as sentinel inside anomalie_rilevate
+            const anomalie = (existingDoc.anomalie_rilevate as any[]) ?? [];
+            const datiExtra = anomalie.find((a: any) => a?.dati_extra)?.dati_extra ?? {};
+            const prefilled = normalizeExtracted({ ...datiExtra, ...existingDoc });
             setForm(prefilled);
             setExtracted({});
             setAiAnomalies([]);
