@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
                 const sub = event.data.object as Stripe.Subscription;
                 const priceId = sub.items.data[0]?.price.id ?? "";
                 const piano = pianoFromPriceId(priceId);
-                const periodEnd = new Date(sub.current_period_end * 1000);
+                const periodEnd = new Date(((sub as any).current_period_end as number) * 1000);
 
                 await db
                     .update(organizations)
