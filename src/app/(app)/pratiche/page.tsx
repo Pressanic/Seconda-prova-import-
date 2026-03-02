@@ -3,10 +3,11 @@ import { db } from "@/lib/db";
 import { pratiche, risk_scores } from "@/lib/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
-import { Plus, FolderOpen, ArrowRight, Clock } from "lucide-react";
+import { Plus, FolderOpen, Clock } from "lucide-react";
 import RiskScoreBadge from "@/components/ui/RiskScoreBadge";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { formatDate } from "@/lib/utils";
+import PraticaActionsMenu from "@/components/pratiche/PraticaActionsMenu";
 
 async function getPratiche(org_id: string) {
     const lista = await db.select({
@@ -120,12 +121,9 @@ export default async function PraticheListPage() {
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <Link
-                                                    href={`/pratiche/${p.id}`}
-                                                    className="opacity-0 group-hover:opacity-100 transition text-blue-400 hover:text-blue-300 text-xs font-medium flex items-center gap-1"
-                                                >
-                                                    Apri <ArrowRight className="w-3 h-3" />
-                                                </Link>
+                                                <div className="flex items-center justify-end">
+                                                    <PraticaActionsMenu id={p.id} codice={p.codice_pratica} />
+                                                </div>
                                             </td>
                                         </tr>
                                     );

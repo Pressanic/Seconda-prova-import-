@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -14,6 +14,8 @@ import {
     User,
     Bot,
     Loader2,
+    Trash2,
+    RotateCcw,
 } from "lucide-react";
 import {
     NORMATIVE,
@@ -106,9 +108,11 @@ function VerificaBadge({ norm, eurlex }: { norm: NormativaRef; eurlex?: EurLexCh
 function NormRow({
     norm,
     eurlex,
+    onHide,
 }: {
     norm: NormativaRef;
     eurlex?: EurLexCheckResult;
+    onHide: (id: string) => void;
 }) {
     const scaduta = isVerificaScaduta(norm);
 
@@ -153,6 +157,13 @@ function NormRow({
                         <ExternalLink className="w-3 h-3" />
                         Fonte
                     </a>
+                    <button
+                        onClick={() => onHide(norm.id)}
+                        title="Nascondi normativa"
+                        className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                 </div>
             </div>
         </div>
@@ -161,7 +172,7 @@ function NormRow({
 
 // ─── Riga HS ──────────────────────────────────────────────────────────────────
 
-function HsRow({ hs }: { hs: CodiceHSRef }) {
+function HsRow({ hs, onHide }: { hs: CodiceHSRef; onHide: (codice: string) => void }) {
     const giorni = giorniDaUltimaVerifica(hs);
 
     return (
@@ -182,15 +193,24 @@ function HsRow({ hs }: { hs: CodiceHSRef }) {
                         {hs.verificato_da.replace("human:", "")}
                     </div>
                 </div>
-                <a
-                    href={hs.url_taric}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition shrink-0"
-                >
-                    <ExternalLink className="w-3 h-3" />
-                    Consulta TARIC
-                </a>
+                <div className="flex items-center gap-2 shrink-0">
+                    <a
+                        href={hs.url_taric}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition"
+                    >
+                        <ExternalLink className="w-3 h-3" />
+                        Consulta TARIC
+                    </a>
+                    <button
+                        onClick={() => onHide(hs.codice)}
+                        title="Nascondi codice HS"
+                        className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -209,14 +229,31 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // ─── Pagina principale ────────────────────────────────────────────────────────
 
+const LS_KEY = "normative-hidden";
+
 export default function NormativePage() {
     const [checking, setChecking] = useState(false);
     const [eurlexResults, setEurlexResults] = useState<Record<string, EurLexCheckResult>>({});
     const [lastCheck, setLastCheck] = useState<string | null>(null);
+    const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
+        if (typeof window === "undefined") return new Set();
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch { return new Set(); }
+    });
 
-    const eurlexNorms = Object.values(NORMATIVE).filter(n => n.verifica_metodo === "eurlex_sparql");
-    const isoNorms    = Object.values(NORMATIVE).filter(n => n.verifica_metodo === "human");
-    const hsEntries   = Object.values(HS_CODICI);
+    useEffect(() => {
+        localStorage.setItem(LS_KEY, JSON.stringify([...hiddenIds]));
+    }, [hiddenIds]);
+
+    const hide = (id: string) => setHiddenIds(prev => new Set([...prev, id]));
+    const restoreAll = () => setHiddenIds(new Set());
+
+    const allNorms = Object.values(NORMATIVE);
+    const eurlexNorms = allNorms.filter(n => n.verifica_metodo === "eurlex_sparql" && !hiddenIds.has(n.id));
+    const isoNorms    = allNorms.filter(n => n.verifica_metodo === "human" && !hiddenIds.has(n.id));
+    const hsEntries   = Object.values(HS_CODICI).filter(h => !hiddenIds.has(h.codice));
 
     async function verificaTutto() {
         setChecking(true);
@@ -253,18 +290,29 @@ export default function NormativePage() {
                         Fonte di verità per tutti i riferimenti normativi usati da prompt AI, cross-check e messaggi di sistema
                     </p>
                 </div>
-                <button
-                    onClick={verificaTutto}
-                    disabled={checking}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-medium transition"
-                >
-                    {checking ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                        <RefreshCw className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 shrink-0">
+                    {hiddenIds.size > 0 && (
+                        <button
+                            onClick={restoreAll}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-xs font-medium transition"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Ripristina ({hiddenIds.size})
+                        </button>
                     )}
-                    Verifica EUR-Lex
-                </button>
+                    <button
+                        onClick={verificaTutto}
+                        disabled={checking}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-medium transition"
+                    >
+                        {checking ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                        Verifica EUR-Lex
+                    </button>
+                </div>
             </div>
 
             {/* Last check timestamp */}
@@ -292,6 +340,7 @@ export default function NormativePage() {
                         key={norm.id}
                         norm={norm}
                         eurlex={norm.celex ? eurlexResults[norm.celex] : undefined}
+                        onHide={hide}
                     />
                 ))}
             </Section>
@@ -304,7 +353,7 @@ export default function NormativePage() {
                     <code className="font-mono text-slate-300">src/lib/normative-config.ts</code>.
                 </div>
                 {isoNorms.map(norm => (
-                    <NormRow key={norm.id} norm={norm} />
+                    <NormRow key={norm.id} norm={norm} onHide={hide} />
                 ))}
             </Section>
 
@@ -315,7 +364,7 @@ export default function NormativePage() {
                     Nessuna API REST gratuita — usa i link di consultazione diretta.
                 </div>
                 {hsEntries.map(hs => (
-                    <HsRow key={hs.codice} hs={hs} />
+                    <HsRow key={hs.codice} hs={hs} onHide={hide} />
                 ))}
             </Section>
 

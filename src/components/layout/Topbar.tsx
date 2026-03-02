@@ -1,23 +1,91 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { Bell, LogOut, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { Bell, LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, Fragment } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 interface TopbarProps {
     user: { name?: string | null; email?: string | null; ruolo?: string };
+}
+
+const SEGMENT_LABELS: Record<string, string> = {
+    dashboard: "Dashboard",
+    pratiche: "Pratiche",
+    nuova: "Nuova Pratica",
+    impostazioni: "Impostazioni",
+    profilo: "Profilo",
+    organizzazione: "Organizzazione",
+    utenti: "Utenti",
+    normative: "Normative",
+    "audit-log": "Audit Log",
+    macchinario: "Macchinario",
+    "compliance-ce": "Compliance CE",
+    "classificazione-hs": "Classificazione HS",
+    "documenti-doganali": "Documenti Doganali",
+    "risk-score": "Risk Score",
+    report: "Report PDF",
+    organismo: "Organismo Notificato",
+};
+
+// UUID v4 pattern
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(s: string) {
+    return UUID_RE.test(s);
+}
+
+function Breadcrumb() {
+    const pathname = usePathname();
+    const segments = pathname.split("/").filter(Boolean);
+
+    const crumbs: { label: string; href: string }[] = [];
+    let href = "";
+
+    for (const seg of segments) {
+        href += `/${seg}`;
+        const label = isUuid(seg)
+            ? `#${seg.slice(0, 8)}`
+            : (SEGMENT_LABELS[seg] ?? seg);
+        crumbs.push({ label, href });
+    }
+
+    if (crumbs.length === 0) return null;
+
+    return (
+        <nav className="flex items-center gap-1 text-sm min-w-0">
+            {crumbs.map((c, i) => (
+                <Fragment key={c.href}>
+                    {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-700 shrink-0" />}
+                    {i === crumbs.length - 1 ? (
+                        <span className="text-white font-medium truncate max-w-[180px]">{c.label}</span>
+                    ) : (
+                        <Link
+                            href={c.href}
+                            className="text-slate-500 hover:text-slate-300 transition truncate max-w-[120px]"
+                        >
+                            {c.label}
+                        </Link>
+                    )}
+                </Fragment>
+            ))}
+        </nav>
+    );
 }
 
 export default function Topbar({ user }: TopbarProps) {
     const [open, setOpen] = useState(false);
 
     return (
-        <header className="h-16 bg-[#0b1120]/80 backdrop-blur border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-10">
-            {/* Left: breadcrumb placeholder — pages override this via page titles */}
-            <div className="flex-1" />
+        <header className="h-16 bg-[#0b1120]/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-6 shrink-0 z-10 shadow-[0_1px_0_rgba(255,255,255,0.03)]">
+            {/* Left: breadcrumb */}
+            <div className="flex-1 min-w-0 mr-4">
+                <Breadcrumb />
+            </div>
 
             {/* Right */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
                 {/* Notifications */}
                 <button className="relative w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition">
                     <Bell className="w-4.5 h-4.5" />

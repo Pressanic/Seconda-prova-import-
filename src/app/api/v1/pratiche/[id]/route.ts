@@ -79,12 +79,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const [pratica] = await db.select().from(pratiche)
         .where(and(eq(pratiche.id, id), eq(pratiche.organization_id, org_id))).limit(1);
     if (!pratica) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // audit_log.pratica_id non ha onDelete:cascade → nullificare prima di eliminare
+    // per evitare FK violation (PostgreSQL default = RESTRICT)
+    await db.update(audit_log).set({ pratica_id: null }).where(eq(audit_log.pratica_id, id));
+
+    // Inserisce log eliminazione (pratica_id già nullificato sopra)
     await db.insert(audit_log).values({
         organization_id: org_id, pratica_id: null, user_id, azione: "PRATICA_ELIMINATA",
         entita_tipo: "pratica", entita_id: id,
         dati_precedenti: { codice_pratica: pratica.codice_pratica, nome_pratica: pratica.nome_pratica },
         dati_nuovi: null,
     });
+
+    // Tutti gli altri record (macchinari, documenti, risk_scores) hanno onDelete:cascade
     await db.delete(pratiche).where(and(eq(pratiche.id, id), eq(pratiche.organization_id, org_id)));
     return NextResponse.json({ success: true });
 }
