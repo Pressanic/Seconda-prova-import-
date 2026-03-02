@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { Users, User, Building2, Activity, BookMarked } from "lucide-react";
+import { Users, User, Building2, Activity, BookMarked, CreditCard } from "lucide-react";
 import Link from "next/link";
 
 export default async function ImpostazioniPage() {
@@ -44,6 +44,13 @@ export default async function ImpostazioniPage() {
             href: "/impostazioni/normative",
             color: "text-amber-400 bg-amber-500/10",
             admin: true,
+        },
+        {
+            title: "Abbonamento",
+            desc: "Gestisci il piano, upgrada a Professional o accedi alle fatture",
+            icon: CreditCard,
+            href: "/impostazioni/billing",
+            color: "text-cyan-400 bg-cyan-500/10",
         },
     ];
 
