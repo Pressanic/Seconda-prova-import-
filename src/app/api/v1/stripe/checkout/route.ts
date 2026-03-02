@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { organizations } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     let customerId = org.stripe_customer_id;
     if (!customerId) {
-        const customer = await stripe.customers.create({
+        const customer = await getStripe().customers.create({
             email: session.user.email!,
             name: org.nome,
             metadata: { organization_id: orgId },
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
             .where(eq(organizations.id, orgId));
     }
 
-    const checkoutSession = await stripe.checkout.sessions.create({
+    const checkoutSession = await getStripe().checkout.sessions.create({
         customer: customerId,
         mode: "subscription",
         line_items: [{ price: priceId, quantity: 1 }],
