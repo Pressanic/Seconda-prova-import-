@@ -12,6 +12,7 @@ import {
     ChevronRight,
     PanelLeftClose,
     PanelLeftOpen,
+    CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,11 @@ const navItems = [
 ];
 
 const bottomNavItems = [
+    {
+        label: "Abbonamento",
+        href: "/impostazioni/billing",
+        icon: CreditCard,
+    },
     {
         label: "Impostazioni",
         href: "/impostazioni",

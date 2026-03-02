@@ -18,7 +18,7 @@ const PLANS = [
         highlight: false,
         badge: null,
         cta: "Start for free",
-        ctaHref: "/login",
+        ctaHref: "/register",
         features: [
             { text: "2 active dossiers", ok: true },
             { text: "1 user", ok: true },
@@ -40,7 +40,7 @@ const PLANS = [
         highlight: true,
         badge: "Most Popular",
         cta: "Try 14 days free",
-        ctaHref: "/login",
+        ctaHref: "/register",
         features: [
             { text: "Unlimited dossiers", ok: true },
             { text: "Up to 5 users", ok: true },

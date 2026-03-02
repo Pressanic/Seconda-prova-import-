@@ -9,6 +9,9 @@ export const organizations = pgTable("organizations", {
     partita_iva: varchar("partita_iva", { length: 11 }).notNull().unique(),
     pec: varchar("pec", { length: 255 }),
     piano: varchar("piano", { length: 50 }).default("free").notNull(), // free | professional | enterprise
+    stripe_customer_id: varchar("stripe_customer_id", { length: 255 }),
+    stripe_subscription_id: varchar("stripe_subscription_id", { length: 255 }),
+    stripe_current_period_end: timestamp("stripe_current_period_end", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
